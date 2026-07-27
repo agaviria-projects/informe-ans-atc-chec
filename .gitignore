@@ -1,0 +1,33 @@
+# Entorno virtual
+venv/
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+
+# Archivos de configuración local
+.env
+.vscode/
+
+# Logs
+logs/*.log
+
+# Archivos de entrada
+entrada/*.csv
+entrada/*.xlsx
+entrada/*.xlsm
+
+# Archivos generados
+salida/*
+!salida/.gitkeep
+
+# Documentos de levantamiento y soporte
+*.docx
+
+# Archivos temporales de Excel
+~$*.xlsx
+~$*.xlsm
+
+# Sistema operativo
+Thumbs.db
+.DS_Store
