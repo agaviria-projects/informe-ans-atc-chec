@@ -103,6 +103,8 @@ class AplicacionANS:
             ALTO_VENTANA,
         )
 
+        self.root.resizable(False, False)
+
         self.root.protocol(
             "WM_DELETE_WINDOW",
             self.cerrar_aplicacion,
@@ -304,7 +306,7 @@ class AplicacionANS:
         )
 
         subtitulo.pack(
-            pady=(0, 6)
+            pady=(0, 2)
         )
 
         ttk.Separator(
