@@ -38,6 +38,10 @@ from src.lector_csv import (
 )
 from src.validador import validar_dataframe
 
+from src.generador_mapa import (
+    ErrorGeneracionMapa,
+    generar_mapa_demo,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1022,24 +1026,99 @@ class AplicacionANS:
 
     def mostrar_mapa_pendiente(self) -> None:
         """
-        Informa que el mapa está pendiente de definición.
+        Genera y abre el mapa demostrativo de ANS.
         """
 
-        mensaje = (
-            "La generación del mapa se habilitará después de "
-            "confirmar las columnas de dirección y el servicio "
-            "de geocodificación que se utilizará."
-        )
+        if self.proceso_activo:
+            return
 
-        self.agregar_mensaje(
-            mensaje,
-            "advertencia",
-        )
+        try:
+            self.bloquear_botones(True)
 
-        messagebox.showinfo(
-            "Generar mapa ANS",
-            mensaje,
-        )
+            self.cambiar_estado(
+                "Generando mapa demostrativo..."
+            )
+
+            self.cambiar_etiqueta_progreso(
+                "Construyendo mapa ANS..."
+            )
+
+            self.barra_progreso.configure(
+                mode="indeterminate"
+            )
+
+            self.barra_progreso.start(15)
+
+            self.agregar_mensaje(
+                "Iniciando generación del mapa ANS demostrativo.",
+                "info",
+            )
+
+            ruta_mapa = generar_mapa_demo(
+                abrir_navegador=True
+            )
+
+            self.agregar_mensaje(
+                f"Mapa generado correctamente: {ruta_mapa.name}",
+                "correcto",
+            )
+
+            self.agregar_mensaje(
+                "Se utilizaron cinco ubicaciones provisionales "
+                "para la demostración.",
+                "advertencia",
+            )
+
+            messagebox.showinfo(
+                "Mapa ANS",
+                "El mapa demostrativo fue generado correctamente.\n\n"
+                "Se abrió en el navegador predeterminado.",
+            )
+
+        except ErrorGeneracionMapa as error:
+            logger.warning(
+                "No fue posible generar el mapa: %s",
+                error,
+            )
+
+            self.mostrar_error(
+                str(error)
+            )
+
+        except Exception as error:
+            logger.exception(
+                "Error inesperado durante la generación del mapa."
+            )
+
+            self.mostrar_error(
+                "Ocurrió un error inesperado al generar el mapa.\n\n"
+                f"Detalle: {error}"
+            )
+
+        finally:
+            self.barra_progreso.stop()
+
+            self.barra_progreso.configure(
+                mode="determinate",
+                value=100,
+            )
+
+            self.bloquear_botones(False)
+
+            self.cambiar_estado(
+                "Esperando acción del usuario..."
+            )
+
+            self.cambiar_etiqueta_progreso(
+                "Estado del proceso"
+            )
+
+            self.root.after(
+                1500,
+                lambda: self.barra_progreso.configure(
+                    value=0
+                ),
+            )
 
     def abrir_carpeta_salida(self) -> None:
         """
