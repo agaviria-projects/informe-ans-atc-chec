@@ -21,6 +21,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 ENTRADA_DIR = BASE_DIR / "entrada"
 SALIDA_DIR = BASE_DIR / "salida"
 LOGS_DIR = BASE_DIR / "logs"
+ASSETS_DIR = BASE_DIR / "assets"
+
+
+# ==========================================================
+# RECURSOS VISUALES
+# ==========================================================
+
+RUTA_LOGO_CHEC = ASSETS_DIR / "chec.png"
 
 
 # ==========================================================
@@ -63,10 +71,39 @@ SEPARADORES_CSV = (
 NOMBRE_APLICACION = "Informe ANS ATC CHEC"
 VERSION_APLICACION = "1.0.0"
 
+
+# ==========================================================
+# PALETA VISUAL
+# ==========================================================
+
 COLOR_PRINCIPAL = "#1E8449"
 COLOR_PRINCIPAL_HOVER = "#239B56"
+
+COLOR_VERDE_CHEC = "#00843D"
+COLOR_VERDE_CHEC_CLARO = "#8DC63F"
+
 COLOR_FONDO = "#F4F6F7"
+COLOR_FONDO_BANNER = "#EAEDED"
+
 COLOR_TEXTO = "#1B2631"
+COLOR_TEXTO_SECUNDARIO = "#566573"
+
+COLOR_BORDE = "#AAB7B8"
+COLOR_BLANCO = "#FFFFFF"
+
+
+# ==========================================================
+# CONFIGURACIÓN DE INTERFAZ
+# ==========================================================
+
+ANCHO_VENTANA = 760
+ALTO_VENTANA = 650
+
+TITULO_PRINCIPAL = "INFORME ANS ATC CHEC"
+
+SUBTITULO_PRINCIPAL = (
+    "Generación de informes ANS y visor geográfico"
+)
 
 
 # ==========================================================
@@ -77,15 +114,43 @@ def crear_directorios() -> None:
     """
     Crea las carpetas esenciales del proyecto cuando no existen.
 
-    Las rutas se construyen dinámicamente desde BASE_DIR,
-    por lo que el proyecto puede copiarse a cualquier equipo.
+    Todas las rutas se generan dinámicamente a partir de BASE_DIR,
+    por lo que el proyecto puede ejecutarse desde cualquier equipo
+    sin utilizar rutas absolutas.
     """
 
     directorios = (
         ENTRADA_DIR,
         SALIDA_DIR,
         LOGS_DIR,
+        ASSETS_DIR,
     )
 
     for directorio in directorios:
-        directorio.mkdir(parents=True, exist_ok=True)
+        directorio.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+
+# ==========================================================
+# VALIDACIÓN DE RECURSOS
+# ==========================================================
+
+def validar_recursos_visuales() -> list[str]:
+    """
+    Valida los recursos visuales requeridos por la aplicación.
+
+    Returns:
+        Lista con los mensajes de advertencia encontrados.
+        La lista estará vacía cuando todos los recursos existan.
+    """
+
+    advertencias: list[str] = []
+
+    if not RUTA_LOGO_CHEC.exists():
+        advertencias.append(
+            f"No se encontró el logo CHEC: {RUTA_LOGO_CHEC.name}"
+        )
+
+    return advertencias

@@ -4,17 +4,32 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+
 from datetime import datetime
 from tkinter import messagebox, scrolledtext, ttk
+from typing import Callable
+
+from PIL import Image, ImageTk
 
 from src.config import (
+    ALTO_VENTANA,
+    ANCHO_VENTANA,
+    COLOR_BLANCO,
+    COLOR_BORDE,
     COLOR_FONDO,
+    COLOR_FONDO_BANNER,
     COLOR_PRINCIPAL,
     COLOR_PRINCIPAL_HOVER,
     COLOR_TEXTO,
+    COLOR_TEXTO_SECUNDARIO,
+    COLOR_VERDE_CHEC,
+    COLOR_VERDE_CHEC_CLARO,
     ENTRADA_DIR,
     NOMBRE_APLICACION,
+    RUTA_LOGO_CHEC,
     SALIDA_DIR,
+    SUBTITULO_PRINCIPAL,
+    TITULO_PRINCIPAL,
     VERSION_APLICACION,
 )
 from src.lector_csv import (
@@ -30,18 +45,33 @@ logger = logging.getLogger(__name__)
 class AplicacionANS:
     """
     Ventana principal del proyecto Informe ANS ATC CHEC.
+
+    La interfaz administra únicamente la interacción con el usuario.
+    La lectura, validación y posterior procesamiento de datos se
+    delegan a los módulos especializados del proyecto.
     """
 
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.proceso_activo = False
+        self.logo_chec: ImageTk.PhotoImage | None = None
 
         self.configurar_ventana()
+        self.configurar_estilos()
         self.construir_interfaz()
 
         logger.info("Interfaz principal iniciada.")
 
+    # ==========================================================
+    # CONFIGURACIÓN GENERAL
+    # ==========================================================
+
     def configurar_ventana(self) -> None:
+        """
+        Configura título, tamaño, posición y comportamiento
+        general de la ventana.
+        """
+
         self.root.title(
             f"{NOMBRE_APLICACION} - Versión {VERSION_APLICACION}"
         )
@@ -50,29 +80,27 @@ class AplicacionANS:
             bg=COLOR_FONDO
         )
 
-        ancho = 760
-        alto = 650
-
         pantalla_ancho = self.root.winfo_screenwidth()
         pantalla_alto = self.root.winfo_screenheight()
 
         posicion_x = (
             pantalla_ancho // 2
-            - ancho // 2
+            - ANCHO_VENTANA // 2
         )
 
         posicion_y = (
             pantalla_alto // 2
-            - alto // 2
+            - ALTO_VENTANA // 2
         )
 
         self.root.geometry(
-            f"{ancho}x{alto}+{posicion_x}+{posicion_y}"
+            f"{ANCHO_VENTANA}x{ALTO_VENTANA}"
+            f"+{posicion_x}+{posicion_y}"
         )
 
         self.root.minsize(
-            ancho,
-            alto,
+            ANCHO_VENTANA,
+            ALTO_VENTANA,
         )
 
         self.root.protocol(
@@ -80,128 +108,330 @@ class AplicacionANS:
             self.cerrar_aplicacion,
         )
 
+    def configurar_estilos(self) -> None:
+        """
+        Configura los estilos visuales de componentes ttk.
+        """
+
+        estilo = ttk.Style()
+
+        try:
+            estilo.theme_use("clam")
+        except tk.TclError:
+            logger.warning(
+                "No fue posible aplicar el tema ttk 'clam'."
+            )
+
+        estilo.configure(
+            "ANS.Horizontal.TProgressbar",
+            troughcolor="#D5D8DC",
+            background=COLOR_VERDE_CHEC_CLARO,
+            bordercolor=COLOR_BORDE,
+            lightcolor=COLOR_VERDE_CHEC_CLARO,
+            darkcolor=COLOR_VERDE_CHEC,
+            thickness=18,
+        )
+
+        estilo.configure(
+            "ANS.TSeparator",
+            background=COLOR_BORDE,
+        )
+
+    # ==========================================================
+    # CONSTRUCCIÓN DE LA INTERFAZ
+    # ==========================================================
+
     def construir_interfaz(self) -> None:
+        """
+        Construye todos los componentes principales.
+        """
+
+        self.construir_barra_superior()
         self.construir_encabezado()
         self.construir_botones()
         self.construir_progreso()
         self.construir_area_log()
         self.construir_pie_pagina()
 
-    def construir_encabezado(self) -> None:
-        frame = tk.Frame(
+    def construir_barra_superior(self) -> None:
+        """
+        Construye la barra superior corporativa con reloj.
+        """
+
+        barra_superior = tk.Frame(
             self.root,
-            bg=COLOR_PRINCIPAL,
-            height=130,
+            bg=COLOR_VERDE_CHEC,
+            height=26,
         )
 
-        frame.pack(
+        barra_superior.pack(
             fill="x"
         )
 
-        frame.pack_propagate(False)
+        barra_superior.pack_propagate(False)
+
+        self.reloj = tk.Label(
+            barra_superior,
+            text="",
+            bg=COLOR_VERDE_CHEC,
+            fg=COLOR_BLANCO,
+            font=("Segoe UI", 9, "bold"),
+            anchor="e",
+        )
+
+        self.reloj.pack(
+            side="right",
+            padx=14,
+        )
+
+        self.actualizar_reloj()
+
+    def construir_encabezado(self) -> None:
+        """
+        Construye el encabezado corporativo con logo y títulos.
+        """
+
+        frame_banner = tk.Frame(
+            self.root,
+            bg=COLOR_FONDO_BANNER,
+            height=145,
+        )
+
+        frame_banner.pack(
+            fill="x"
+        )
+
+        frame_banner.pack_propagate(False)
+
+        contenido_banner = tk.Frame(
+            frame_banner,
+            bg=COLOR_FONDO_BANNER,
+        )
+
+        contenido_banner.pack(
+            expand=True
+        )
+
+        self.construir_logo(
+            contenido_banner
+        )
+
+        frame_titulos = tk.Frame(
+            contenido_banner,
+            bg=COLOR_FONDO_BANNER,
+        )
+
+        frame_titulos.pack(
+            side="left",
+            padx=(18, 0),
+        )
 
         titulo = tk.Label(
-            frame,
-            text="INFORME ANS ATC CHEC",
-            bg=COLOR_PRINCIPAL,
-            fg="white",
-            font=(
-                "Segoe UI",
-                20,
-                "bold",
-            ),
+            frame_titulos,
+            text=TITULO_PRINCIPAL,
+            bg=COLOR_FONDO_BANNER,
+            fg=COLOR_TEXTO,
+            font=("Segoe UI", 20, "bold"),
+            anchor="w",
         )
 
         titulo.pack(
-            pady=(24, 4)
+            anchor="w"
         )
 
         subtitulo = tk.Label(
-            frame,
-            text=(
-                "Generación de informes ANS "
-                "y visor geográfico"
-            ),
-            bg=COLOR_PRINCIPAL,
-            fg="white",
-            font=(
-                "Segoe UI",
-                11,
-            ),
+            frame_titulos,
+            text=SUBTITULO_PRINCIPAL,
+            bg=COLOR_FONDO_BANNER,
+            fg=COLOR_VERDE_CHEC,
+            font=("Segoe UI", 11, "bold"),
+            anchor="w",
         )
 
-        subtitulo.pack()
+        subtitulo.pack(
+            anchor="w",
+            pady=(6, 0),
+        )
+
+        descripcion = tk.Label(
+            frame_titulos,
+            text="Procesamiento automatizado de información operativa",
+            bg=COLOR_FONDO_BANNER,
+            fg=COLOR_TEXTO_SECUNDARIO,
+            font=("Segoe UI", 9),
+            anchor="w",
+        )
+
+        descripcion.pack(
+            anchor="w",
+            pady=(3, 0),
+        )
+
+        ttk.Separator(
+            self.root,
+            orient="horizontal",
+            style="ANS.TSeparator",
+        ).pack(
+            fill="x",
+            pady=(0, 10),
+        )
+
+    def construir_logo(
+        self,
+        contenedor: tk.Widget,
+    ) -> None:
+        """
+        Carga y muestra el logo CHEC.
+
+        Si el archivo no existe o no puede abrirse, muestra
+        un texto alternativo sin detener la aplicación.
+        """
+
+        try:
+            if not RUTA_LOGO_CHEC.exists():
+                raise FileNotFoundError(
+                    f"No se encontró el logo: {RUTA_LOGO_CHEC}"
+                )
+
+            imagen = Image.open(
+                RUTA_LOGO_CHEC
+            )
+
+            imagen.thumbnail(
+                (145, 95),
+                Image.Resampling.LANCZOS,
+            )
+
+            self.logo_chec = ImageTk.PhotoImage(
+                imagen
+            )
+
+            etiqueta_logo = tk.Label(
+                contenedor,
+                image=self.logo_chec,
+                bg=COLOR_FONDO_BANNER,
+                borderwidth=0,
+                highlightthickness=0,
+            )
+
+            etiqueta_logo.pack(
+                side="left"
+            )
+
+            logger.info(
+                "Logo CHEC cargado correctamente: %s",
+                RUTA_LOGO_CHEC.name,
+            )
+
+        except Exception as error:
+            logger.exception(
+                "No fue posible cargar el logo CHEC."
+            )
+
+            etiqueta_logo = tk.Label(
+                contenedor,
+                text="CHEC",
+                bg=COLOR_FONDO_BANNER,
+                fg=COLOR_VERDE_CHEC,
+                font=("Segoe UI", 24, "bold"),
+            )
+
+            etiqueta_logo.pack(
+                side="left"
+            )
+
+            logger.warning(
+                "Se utilizó texto alternativo para el logo: %s",
+                error,
+            )
 
     def construir_botones(self) -> None:
-        frame = tk.Frame(
+        """
+        Construye los botones principales de operación.
+        """
+
+        contenedor = tk.Frame(
             self.root,
             bg=COLOR_FONDO,
         )
 
-        frame.pack(
+        contenedor.pack(
             fill="x",
-            padx=30,
-            pady=(22, 12),
+            padx=34,
+            pady=(5, 12),
         )
 
-        frame.columnconfigure(
+        contenedor.columnconfigure(
             (0, 1),
             weight=1,
+            uniform="botones",
         )
 
         self.btn_informe = self.crear_boton(
-            contenedor=frame,
+            contenedor=contenedor,
             texto="GENERAR\nINFORME ANS",
             comando=self.iniciar_validacion_csv,
+            color=COLOR_VERDE_CHEC_CLARO,
+            color_hover="#A4D65E",
+            color_texto=COLOR_TEXTO,
         )
 
         self.btn_informe.grid(
             row=0,
             column=0,
             padx=8,
-            pady=6,
+            pady=7,
             sticky="ew",
         )
 
         self.btn_mapa = self.crear_boton(
-            contenedor=frame,
-            texto="GENERAR\nMAPA",
+            contenedor=contenedor,
+            texto="GENERAR\nMAPA ANS",
             comando=self.mostrar_mapa_pendiente,
+            color=COLOR_VERDE_CHEC,
+            color_hover=COLOR_PRINCIPAL_HOVER,
+            color_texto=COLOR_BLANCO,
         )
 
         self.btn_mapa.grid(
             row=0,
             column=1,
             padx=8,
-            pady=6,
+            pady=7,
             sticky="ew",
         )
 
         self.btn_salida = self.crear_boton(
-            contenedor=frame,
+            contenedor=contenedor,
             texto="ABRIR CARPETA\nDE SALIDA",
             comando=self.abrir_carpeta_salida,
+            color=COLOR_PRINCIPAL,
+            color_hover=COLOR_PRINCIPAL_HOVER,
+            color_texto=COLOR_BLANCO,
         )
 
         self.btn_salida.grid(
             row=1,
             column=0,
             padx=8,
-            pady=6,
+            pady=7,
             sticky="ew",
         )
 
         self.btn_salir = self.crear_boton(
-            contenedor=frame,
-            texto="SALIR",
+            contenedor=contenedor,
+            texto="SALIR DEL PANEL",
             comando=self.cerrar_aplicacion,
+            color="#5D6D7E",
+            color_hover="#34495E",
+            color_texto=COLOR_BLANCO,
         )
 
         self.btn_salir.grid(
             row=1,
             column=1,
             padx=8,
-            pady=6,
+            pady=7,
             sticky="ew",
         )
 
@@ -209,58 +439,125 @@ class AplicacionANS:
         self,
         contenedor: tk.Widget,
         texto: str,
-        comando,
+        comando: Callable[[], None],
+        color: str,
+        color_hover: str,
+        color_texto: str,
     ) -> tk.Button:
+        """
+        Crea un botón corporativo reutilizable.
+        """
 
         boton = tk.Button(
             contenedor,
             text=texto,
             command=comando,
-            bg=COLOR_PRINCIPAL,
-            fg="white",
-            activebackground=COLOR_PRINCIPAL_HOVER,
-            activeforeground="white",
-            font=(
-                "Segoe UI",
-                10,
-                "bold",
-            ),
+            bg=color,
+            fg=color_texto,
+            activebackground=color_hover,
+            activeforeground=color_texto,
+            disabledforeground="#D5D8DC",
+            font=("Segoe UI", 10, "bold"),
             height=2,
-            relief="flat",
+            relief="ridge",
+            borderwidth=3,
             cursor="hand2",
+            highlightthickness=0,
         )
 
         boton.bind(
             "<Enter>",
-            lambda evento: boton.configure(
-                bg=COLOR_PRINCIPAL_HOVER
+            lambda evento: self.aplicar_hover(
+                boton,
+                color_hover,
             ),
         )
 
         boton.bind(
             "<Leave>",
-            lambda evento: boton.configure(
-                bg=COLOR_PRINCIPAL
+            lambda evento: self.retirar_hover(
+                boton,
+                color,
             ),
         )
 
         return boton
 
+    def aplicar_hover(
+        self,
+        boton: tk.Button,
+        color_hover: str,
+    ) -> None:
+        """
+        Aplica el color hover solo si el botón está habilitado.
+        """
+
+        if str(boton["state"]) != tk.DISABLED:
+            boton.configure(
+                bg=color_hover
+            )
+
+    def retirar_hover(
+        self,
+        boton: tk.Button,
+        color_normal: str,
+    ) -> None:
+        """
+        Restaura el color normal del botón.
+        """
+
+        if str(boton["state"]) != tk.DISABLED:
+            boton.configure(
+                bg=color_normal
+            )
+
     def construir_progreso(self) -> None:
-        self.barra_progreso = ttk.Progressbar(
+        """
+        Construye la barra de progreso y su etiqueta.
+        """
+
+        frame_progreso = tk.Frame(
             self.root,
+            bg=COLOR_FONDO,
+        )
+
+        frame_progreso.pack(
+            fill="x",
+            padx=42,
+            pady=(2, 10),
+        )
+
+        self.etiqueta_progreso = tk.Label(
+            frame_progreso,
+            text="Estado del proceso",
+            bg=COLOR_FONDO,
+            fg=COLOR_TEXTO_SECUNDARIO,
+            font=("Segoe UI", 9, "bold"),
+            anchor="w",
+        )
+
+        self.etiqueta_progreso.pack(
+            fill="x",
+            pady=(0, 4),
+        )
+
+        self.barra_progreso = ttk.Progressbar(
+            frame_progreso,
             orient="horizontal",
             mode="determinate",
             maximum=100,
+            style="ANS.Horizontal.TProgressbar",
         )
 
         self.barra_progreso.pack(
-            fill="x",
-            padx=38,
-            pady=(5, 10),
+            fill="x"
         )
 
     def construir_area_log(self) -> None:
+        """
+        Construye el área visual donde se informa el proceso.
+        """
+
         frame = tk.Frame(
             self.root,
             bg=COLOR_FONDO,
@@ -270,40 +567,43 @@ class AplicacionANS:
             fill="both",
             expand=True,
             padx=30,
-            pady=(0, 10),
+            pady=(0, 8),
+        )
+
+        frame_titulo = tk.Frame(
+            frame,
+            bg=COLOR_FONDO,
+        )
+
+        frame_titulo.pack(
+            fill="x",
+            pady=(0, 5),
         )
 
         titulo = tk.Label(
-            frame,
+            frame_titulo,
             text="Resultado del proceso",
             bg=COLOR_FONDO,
             fg=COLOR_TEXTO,
-            font=(
-                "Segoe UI",
-                10,
-                "bold",
-            ),
+            font=("Segoe UI", 10, "bold"),
             anchor="w",
         )
 
         titulo.pack(
-            fill="x",
-            pady=(0, 4),
+            side="left"
         )
 
-        self.area_mensajes = (
-            scrolledtext.ScrolledText(
-                frame,
-                wrap=tk.WORD,
-                font=(
-                    "Consolas",
-                    9,
-                ),
-                bg="white",
-                fg=COLOR_TEXTO,
-                height=12,
-                state="disabled",
-            )
+        self.area_mensajes = scrolledtext.ScrolledText(
+            frame,
+            wrap=tk.WORD,
+            font=("Consolas", 9),
+            bg=COLOR_BLANCO,
+            fg=COLOR_TEXTO,
+            insertbackground=COLOR_TEXTO,
+            relief="solid",
+            borderwidth=1,
+            height=12,
+            state="disabled",
         )
 
         self.area_mensajes.pack(
@@ -318,7 +618,7 @@ class AplicacionANS:
 
         self.area_mensajes.tag_config(
             "correcto",
-            foreground="#1E8449",
+            foreground=COLOR_VERDE_CHEC,
         )
 
         self.area_mensajes.tag_config(
@@ -331,34 +631,99 @@ class AplicacionANS:
             foreground="#C0392B",
         )
 
+        self.area_mensajes.tag_config(
+            "titulo",
+            foreground=COLOR_TEXTO,
+            font=("Consolas", 9, "bold"),
+        )
+
         self.agregar_mensaje(
             "Aplicación iniciada correctamente.",
             "correcto",
         )
 
         self.agregar_mensaje(
-            f"Carpeta de entrada: {ENTRADA_DIR}",
-            "info",
+            "Directorio de entrada verificado.",
+            "correcto",
+        )
+
+        logger.info(
+            "Carpeta de entrada configurada: %s",
+            ENTRADA_DIR,
         )
 
     def construir_pie_pagina(self) -> None:
-        self.estado = tk.Label(
+        """
+        Construye el pie de página con estado y versión.
+        """
+
+        ttk.Separator(
             self.root,
+            orient="horizontal",
+            style="ANS.TSeparator",
+        ).pack(
+            fill="x",
+            padx=25,
+            pady=(4, 5),
+        )
+
+        frame_footer = tk.Frame(
+            self.root,
+            bg=COLOR_FONDO,
+        )
+
+        frame_footer.pack(
+            fill="x",
+            padx=30,
+            pady=(0, 14),
+        )
+
+        self.estado = tk.Label(
+            frame_footer,
             text="Esperando acción del usuario...",
             bg=COLOR_FONDO,
-            fg=COLOR_TEXTO,
-            font=(
-                "Segoe UI",
-                9,
-                "italic",
-            ),
+            fg=COLOR_TEXTO_SECUNDARIO,
+            font=("Segoe UI", 9, "italic"),
             anchor="w",
         )
 
         self.estado.pack(
-            fill="x",
-            padx=30,
-            pady=(0, 16),
+            side="left"
+        )
+
+        version = tk.Label(
+            frame_footer,
+            text=f"Versión {VERSION_APLICACION}",
+            bg=COLOR_FONDO,
+            fg=COLOR_TEXTO_SECUNDARIO,
+            font=("Segoe UI", 8),
+            anchor="e",
+        )
+
+        version.pack(
+            side="right"
+        )
+
+    # ==========================================================
+    # UTILIDADES DE INTERFAZ
+    # ==========================================================
+
+    def actualizar_reloj(self) -> None:
+        """
+        Actualiza el reloj superior cada segundo.
+        """
+
+        hora_actual = datetime.now().strftime(
+            "%I:%M:%S %p"
+        )
+
+        self.reloj.configure(
+            text=hora_actual
+        )
+
+        self.root.after(
+            1000,
+            self.actualizar_reloj,
         )
 
     def agregar_mensaje(
@@ -366,6 +731,9 @@ class AplicacionANS:
         mensaje: str,
         etiqueta: str = "info",
     ) -> None:
+        """
+        Agrega un mensaje con hora al área de resultados.
+        """
 
         hora = datetime.now().strftime(
             "%H:%M:%S"
@@ -393,8 +761,23 @@ class AplicacionANS:
         self,
         mensaje: str,
     ) -> None:
+        """
+        Actualiza el texto inferior del estado del proceso.
+        """
 
         self.estado.configure(
+            text=mensaje
+        )
+
+    def cambiar_etiqueta_progreso(
+        self,
+        mensaje: str,
+    ) -> None:
+        """
+        Actualiza el texto ubicado sobre la barra de progreso.
+        """
+
+        self.etiqueta_progreso.configure(
             text=mensaje
         )
 
@@ -402,6 +785,9 @@ class AplicacionANS:
         self,
         bloquear: bool,
     ) -> None:
+        """
+        Habilita o deshabilita los botones durante un proceso.
+        """
 
         estado = (
             tk.DISABLED
@@ -419,7 +805,15 @@ class AplicacionANS:
 
         self.proceso_activo = bloquear
 
+    # ==========================================================
+    # PROCESO DE VALIDACIÓN DEL CSV
+    # ==========================================================
+
     def iniciar_validacion_csv(self) -> None:
+        """
+        Inicia la validación en un hilo secundario.
+        """
+
         if self.proceso_activo:
             return
 
@@ -433,6 +827,10 @@ class AplicacionANS:
         hilo.start()
 
     def validar_archivo_csv(self) -> None:
+        """
+        Localiza, lee y valida el archivo CSV.
+        """
+
         try:
             self.root.after(
                 0,
@@ -495,6 +893,10 @@ class AplicacionANS:
             )
 
     def preparar_proceso(self) -> None:
+        """
+        Prepara visualmente la aplicación para el proceso.
+        """
+
         self.barra_progreso.configure(
             mode="indeterminate"
         )
@@ -505,12 +907,20 @@ class AplicacionANS:
             "Validando archivo CSV..."
         )
 
+        self.cambiar_etiqueta_progreso(
+            "Validando archivo de entrada..."
+        )
+
         self.agregar_mensaje(
             "Iniciando validación del archivo CSV.",
             "info",
         )
 
     def finalizar_proceso(self) -> None:
+        """
+        Restablece la interfaz al finalizar el proceso.
+        """
+
         self.barra_progreso.stop()
 
         self.barra_progreso.configure(
@@ -523,12 +933,19 @@ class AplicacionANS:
             "Esperando acción del usuario..."
         )
 
+        self.cambiar_etiqueta_progreso(
+            "Estado del proceso"
+        )
+
     def mostrar_resultado_validacion(
         self,
         nombre_archivo,
         dataframe,
         resultado,
     ) -> None:
+        """
+        Presenta el resultado de la validación en pantalla.
+        """
 
         self.barra_progreso.configure(
             mode="determinate"
@@ -553,7 +970,7 @@ class AplicacionANS:
 
         self.agregar_mensaje(
             "Encabezados detectados:",
-            "info",
+            "titulo",
         )
 
         for columna in dataframe.columns:
@@ -581,7 +998,7 @@ class AplicacionANS:
             )
 
             self.agregar_mensaje(
-                "El cálculo ANS será incorporado cuando se "
+                "El cálculo ANS se incorporará cuando se "
                 "confirmen las columnas y reglas contractuales.",
                 "advertencia",
             )
@@ -608,10 +1025,17 @@ class AplicacionANS:
             ),
         )
 
+    # ==========================================================
+    # ACCIONES COMPLEMENTARIAS
+    # ==========================================================
+
     def mostrar_error(
         self,
         mensaje: str,
     ) -> None:
+        """
+        Muestra un error controlado.
+        """
 
         self.agregar_mensaje(
             mensaje,
@@ -624,6 +1048,10 @@ class AplicacionANS:
         )
 
     def mostrar_mapa_pendiente(self) -> None:
+        """
+        Informa que el mapa se encuentra pendiente de definición.
+        """
+
         mensaje = (
             "La generación del mapa se habilitará después de "
             "confirmar si el archivo contiene coordenadas o "
@@ -636,14 +1064,25 @@ class AplicacionANS:
         )
 
         messagebox.showinfo(
-            "Generar mapa",
+            "Generar mapa ANS",
             mensaje,
         )
 
     def abrir_carpeta_salida(self) -> None:
+        """
+        Abre la carpeta de salida en el explorador del sistema.
+        """
+
         try:
+            SALIDA_DIR.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
             if sys.platform.startswith("win"):
-                os.startfile(SALIDA_DIR)
+                os.startfile(
+                    SALIDA_DIR
+                )
 
             elif sys.platform == "darwin":
                 subprocess.Popen(
@@ -671,6 +1110,10 @@ class AplicacionANS:
             )
 
     def cerrar_aplicacion(self) -> None:
+        """
+        Cierra la aplicación de forma controlada.
+        """
+
         if self.proceso_activo:
             confirmar = messagebox.askyesno(
                 "Proceso activo",
@@ -689,6 +1132,10 @@ class AplicacionANS:
 
 
 def iniciar_interfaz() -> None:
+    """
+    Inicia la ventana principal de la aplicación.
+    """
+
     root = tk.Tk()
     AplicacionANS(root)
     root.mainloop()
