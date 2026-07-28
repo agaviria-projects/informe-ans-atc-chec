@@ -28,19 +28,19 @@ ASSETS_DIR = BASE_DIR / "assets"
 # RECURSOS VISUALES
 # ==========================================================
 
-RUTA_LOGO_CHEC = ASSETS_DIR / "chec.png"
+RUTA_LOGO_EMPRESA = ASSETS_DIR / "elite.png"
 
 
 # ==========================================================
 # ARCHIVOS DE SALIDA
 # ==========================================================
 
-NOMBRE_INFORME_EXCEL = "Informe_ANS_ATC_CHEC.xlsx"
-NOMBRE_MAPA_HTML = "Mapa_ANS_ATC_CHEC.html"
+NOMBRE_INFORME_EXCEL = "Informe_ANS_ELITE.xlsx"
+NOMBRE_MAPA_HTML = "Mapa_ANS_ELITE.html"
 
 RUTA_INFORME_EXCEL = SALIDA_DIR / NOMBRE_INFORME_EXCEL
 RUTA_MAPA_HTML = SALIDA_DIR / NOMBRE_MAPA_HTML
-RUTA_LOG = LOGS_DIR / "Informe_ANS_ATC_CHEC.log"
+RUTA_LOG = LOGS_DIR / "Informe_ANS_ELITE.log"
 
 
 # ==========================================================
@@ -68,7 +68,7 @@ SEPARADORES_CSV = (
 # CONFIGURACIÓN GENERAL
 # ==========================================================
 
-NOMBRE_APLICACION = "Informe ANS ATC CHEC"
+NOMBRE_APLICACION = "Informe ANS Elite"
 VERSION_APLICACION = "1.0.0"
 
 
@@ -79,8 +79,8 @@ VERSION_APLICACION = "1.0.0"
 COLOR_PRINCIPAL = "#1E8449"
 COLOR_PRINCIPAL_HOVER = "#239B56"
 
-COLOR_VERDE_CHEC = "#00843D"
-COLOR_VERDE_CHEC_CLARO = "#8DC63F"
+COLOR_VERDE_EMPRESA = "#00843D"
+COLOR_VERDE_EMPRESA_CLARO = "#8DC63F"
 
 COLOR_FONDO = "#F4F6F7"
 COLOR_FONDO_BANNER = "#EAEDED"
@@ -99,10 +99,10 @@ COLOR_BLANCO = "#FFFFFF"
 ANCHO_VENTANA = 760
 ALTO_VENTANA = 650
 
-TITULO_PRINCIPAL = "INFORME ANS ATC CHEC"
+TITULO_PRINCIPAL = "INFORME ANS"
 
 SUBTITULO_PRINCIPAL = (
-    "Generación de informes ANS y visor geográfico"
+    "Generación de informes ANS y mapas geográficos"
 )
 
 
@@ -148,9 +148,10 @@ def validar_recursos_visuales() -> list[str]:
 
     advertencias: list[str] = []
 
-    if not RUTA_LOGO_CHEC.exists():
+    if not RUTA_LOGO_EMPRESA.exists():
         advertencias.append(
-            f"No se encontró el logo CHEC: {RUTA_LOGO_CHEC.name}"
+            f"No se encontró el logo corporativo: "
+            f"{RUTA_LOGO_EMPRESA.name}"
         )
 
     return advertencias

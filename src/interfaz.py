@@ -22,11 +22,11 @@ from src.config import (
     COLOR_PRINCIPAL_HOVER,
     COLOR_TEXTO,
     COLOR_TEXTO_SECUNDARIO,
-    COLOR_VERDE_CHEC,
-    COLOR_VERDE_CHEC_CLARO,
+    COLOR_VERDE_EMPRESA,
+    COLOR_VERDE_EMPRESA_CLARO,
     ENTRADA_DIR,
     NOMBRE_APLICACION,
-    RUTA_LOGO_CHEC,
+    RUTA_LOGO_EMPRESA,
     SALIDA_DIR,
     SUBTITULO_PRINCIPAL,
     TITULO_PRINCIPAL,
@@ -44,17 +44,17 @@ logger = logging.getLogger(__name__)
 
 class AplicacionANS:
     """
-    Ventana principal del proyecto Informe ANS ATC CHEC.
+    Ventana principal del proyecto Informe ANS.
 
-    La interfaz administra únicamente la interacción con el usuario.
-    La lectura, validación y posterior procesamiento de datos se
-    delegan a los módulos especializados del proyecto.
+    La interfaz administra la interacción con el usuario.
+    La lectura, validación y procesamiento de datos se delegan
+    a los módulos especializados del proyecto.
     """
 
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.proceso_activo = False
-        self.logo_chec: ImageTk.PhotoImage | None = None
+        self.logo_empresa: ImageTk.PhotoImage | None = None
 
         self.configurar_ventana()
         self.configurar_estilos()
@@ -110,13 +110,14 @@ class AplicacionANS:
 
     def configurar_estilos(self) -> None:
         """
-        Configura los estilos visuales de componentes ttk.
+        Configura los estilos visuales de los componentes ttk.
         """
 
         estilo = ttk.Style()
 
         try:
             estilo.theme_use("clam")
+
         except tk.TclError:
             logger.warning(
                 "No fue posible aplicar el tema ttk 'clam'."
@@ -125,10 +126,10 @@ class AplicacionANS:
         estilo.configure(
             "ANS.Horizontal.TProgressbar",
             troughcolor="#D5D8DC",
-            background=COLOR_VERDE_CHEC_CLARO,
+            background=COLOR_VERDE_EMPRESA_CLARO,
             bordercolor=COLOR_BORDE,
-            lightcolor=COLOR_VERDE_CHEC_CLARO,
-            darkcolor=COLOR_VERDE_CHEC,
+            lightcolor=COLOR_VERDE_EMPRESA_CLARO,
+            darkcolor=COLOR_VERDE_EMPRESA,
             thickness=18,
         )
 
@@ -160,7 +161,7 @@ class AplicacionANS:
 
         barra_superior = tk.Frame(
             self.root,
-            bg=COLOR_VERDE_CHEC,
+            bg=COLOR_VERDE_EMPRESA,
             height=26,
         )
 
@@ -173,7 +174,7 @@ class AplicacionANS:
         self.reloj = tk.Label(
             barra_superior,
             text="",
-            bg=COLOR_VERDE_CHEC,
+            bg=COLOR_VERDE_EMPRESA,
             fg=COLOR_BLANCO,
             font=("Segoe UI", 9, "bold"),
             anchor="e",
@@ -188,13 +189,13 @@ class AplicacionANS:
 
     def construir_encabezado(self) -> None:
         """
-        Construye el encabezado corporativo con logo y títulos.
+        Construye un encabezado corporativo limpio y centrado.
         """
 
         frame_banner = tk.Frame(
             self.root,
             bg=COLOR_FONDO_BANNER,
-            height=145,
+            height=170,
         )
 
         frame_banner.pack(
@@ -212,59 +213,98 @@ class AplicacionANS:
             expand=True
         )
 
-        self.construir_logo(
-            contenido_banner
-        )
+        # ======================================================
+        # LOGO CORPORATIVO
+        # ======================================================
 
-        frame_titulos = tk.Frame(
-            contenido_banner,
-            bg=COLOR_FONDO_BANNER,
-        )
+        try:
+            if not RUTA_LOGO_EMPRESA.exists():
+                raise FileNotFoundError(
+                    f"No se encontró el logo: {RUTA_LOGO_EMPRESA}"
+                )
 
-        frame_titulos.pack(
-            side="left",
-            padx=(18, 0),
-        )
+            imagen = Image.open(
+                RUTA_LOGO_EMPRESA
+            )
+
+            imagen.thumbnail(
+                (218, 100),
+                Image.Resampling.LANCZOS,
+            )
+
+            self.logo_empresa = ImageTk.PhotoImage(
+                imagen
+            )
+
+            etiqueta_logo = tk.Label(
+                contenido_banner,
+                image=self.logo_empresa,
+                bg=COLOR_FONDO_BANNER,
+                borderwidth=0,
+                highlightthickness=0,
+            )
+
+            etiqueta_logo.pack(
+                pady=(4, 2)
+            )
+
+            logger.info(
+                "Logo corporativo cargado correctamente: %s",
+                RUTA_LOGO_EMPRESA.name,
+            )
+
+        except Exception as error:
+            logger.exception(
+                "No fue posible cargar el logo corporativo."
+            )
+
+            etiqueta_logo = tk.Label(
+                contenido_banner,
+                text="ELITE Ingenieros",
+                bg=COLOR_FONDO_BANNER,
+                fg=COLOR_VERDE_EMPRESA,
+                font=("Segoe UI", 22, "bold"),
+            )
+
+            etiqueta_logo.pack(
+                pady=(6, 2)
+            )
+
+            logger.warning(
+                "Se utilizó texto alternativo para el logo: %s",
+                error,
+            )
+
+        # ======================================================
+        # TÍTULO
+        # ======================================================
 
         titulo = tk.Label(
-            frame_titulos,
+            contenido_banner,
             text=TITULO_PRINCIPAL,
             bg=COLOR_FONDO_BANNER,
             fg=COLOR_TEXTO,
-            font=("Segoe UI", 20, "bold"),
-            anchor="w",
+            font=("Segoe UI", 18, "bold"),
         )
 
         titulo.pack(
-            anchor="w"
+            pady=(0, 2)
         )
 
+        # ======================================================
+        # SUBTÍTULO
+        # ======================================================
+
         subtitulo = tk.Label(
-            frame_titulos,
+            contenido_banner,
             text=SUBTITULO_PRINCIPAL,
             bg=COLOR_FONDO_BANNER,
-            fg=COLOR_VERDE_CHEC,
-            font=("Segoe UI", 11, "bold"),
-            anchor="w",
+            fg=COLOR_VERDE_EMPRESA,
+            font=("Segoe UI", 9, "bold")
         )
 
         subtitulo.pack(
-            anchor="w",
-            pady=(6, 0),
-        )
-
-        descripcion = tk.Label(
-            frame_titulos,
-            text="Procesamiento automatizado de información operativa",
-            bg=COLOR_FONDO_BANNER,
-            fg=COLOR_TEXTO_SECUNDARIO,
-            font=("Segoe UI", 9),
-            anchor="w",
-        )
-
-        descripcion.pack(
-            anchor="w",
-            pady=(3, 0),
+            pady=(0, 6)
         )
 
         ttk.Separator(
@@ -275,75 +315,6 @@ class AplicacionANS:
             fill="x",
             pady=(0, 10),
         )
-
-    def construir_logo(
-        self,
-        contenedor: tk.Widget,
-    ) -> None:
-        """
-        Carga y muestra el logo CHEC.
-
-        Si el archivo no existe o no puede abrirse, muestra
-        un texto alternativo sin detener la aplicación.
-        """
-
-        try:
-            if not RUTA_LOGO_CHEC.exists():
-                raise FileNotFoundError(
-                    f"No se encontró el logo: {RUTA_LOGO_CHEC}"
-                )
-
-            imagen = Image.open(
-                RUTA_LOGO_CHEC
-            )
-
-            imagen.thumbnail(
-                (145, 95),
-                Image.Resampling.LANCZOS,
-            )
-
-            self.logo_chec = ImageTk.PhotoImage(
-                imagen
-            )
-
-            etiqueta_logo = tk.Label(
-                contenedor,
-                image=self.logo_chec,
-                bg=COLOR_FONDO_BANNER,
-                borderwidth=0,
-                highlightthickness=0,
-            )
-
-            etiqueta_logo.pack(
-                side="left"
-            )
-
-            logger.info(
-                "Logo CHEC cargado correctamente: %s",
-                RUTA_LOGO_CHEC.name,
-            )
-
-        except Exception as error:
-            logger.exception(
-                "No fue posible cargar el logo CHEC."
-            )
-
-            etiqueta_logo = tk.Label(
-                contenedor,
-                text="CHEC",
-                bg=COLOR_FONDO_BANNER,
-                fg=COLOR_VERDE_CHEC,
-                font=("Segoe UI", 24, "bold"),
-            )
-
-            etiqueta_logo.pack(
-                side="left"
-            )
-
-            logger.warning(
-                "Se utilizó texto alternativo para el logo: %s",
-                error,
-            )
 
     def construir_botones(self) -> None:
         """
@@ -371,7 +342,7 @@ class AplicacionANS:
             contenedor=contenedor,
             texto="GENERAR\nINFORME ANS",
             comando=self.iniciar_validacion_csv,
-            color=COLOR_VERDE_CHEC_CLARO,
+            color=COLOR_VERDE_EMPRESA_CLARO,
             color_hover="#A4D65E",
             color_texto=COLOR_TEXTO,
         )
@@ -388,7 +359,7 @@ class AplicacionANS:
             contenedor=contenedor,
             texto="GENERAR\nMAPA ANS",
             comando=self.mostrar_mapa_pendiente,
-            color=COLOR_VERDE_CHEC,
+            color=COLOR_VERDE_EMPRESA,
             color_hover=COLOR_PRINCIPAL_HOVER,
             color_texto=COLOR_BLANCO,
         )
@@ -489,7 +460,7 @@ class AplicacionANS:
         color_hover: str,
     ) -> None:
         """
-        Aplica el color hover solo si el botón está habilitado.
+        Aplica el color hover si el botón está habilitado.
         """
 
         if str(boton["state"]) != tk.DISABLED:
@@ -618,7 +589,7 @@ class AplicacionANS:
 
         self.area_mensajes.tag_config(
             "correcto",
-            foreground=COLOR_VERDE_CHEC,
+            foreground=COLOR_VERDE_EMPRESA,
         )
 
         self.area_mensajes.tag_config(
@@ -944,7 +915,7 @@ class AplicacionANS:
         resultado,
     ) -> None:
         """
-        Presenta el resultado de la validación en pantalla.
+        Presenta el resultado de la validación.
         """
 
         self.barra_progreso.configure(
@@ -1049,13 +1020,13 @@ class AplicacionANS:
 
     def mostrar_mapa_pendiente(self) -> None:
         """
-        Informa que el mapa se encuentra pendiente de definición.
+        Informa que el mapa está pendiente de definición.
         """
 
         mensaje = (
             "La generación del mapa se habilitará después de "
-            "confirmar si el archivo contiene coordenadas o "
-            "si será necesario geocodificar las direcciones."
+            "confirmar las columnas de dirección y el servicio "
+            "de geocodificación que se utilizará."
         )
 
         self.agregar_mensaje(
@@ -1133,7 +1104,7 @@ class AplicacionANS:
 
 def iniciar_interfaz() -> None:
     """
-    Inicia la ventana principal de la aplicación.
+    Inicia la ventana principal.
     """
 
     root = tk.Tk()
