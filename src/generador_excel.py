@@ -72,33 +72,27 @@ def crear_dataframe_control(
     registros: list[dict] = []
 
     for control in controles_archivos:
+
         registros.append(
             {
                 "TIPO": "ARCHIVO",
-                "ELEMENTO": control["ARCHIVO"],
+                "ELEMENTO": control["REGION"],
                 "DETALLE": (
-                    f"Región: {control['REGION']} | "
-                    f"Hoja: {control['HOJA']} | "
-                    f"Encabezados: fila "
-                    f"{control['FILA_ENCABEZADOS']} | "
-                    f"Filas vacías eliminadas: "
-                    f"{control['FILAS_VACIAS_ELIMINADAS']} | "
-                    f"Filas sin ID_ORDEN: "
-                    f"{control['FILAS_SIN_ID_ORDEN']} | "
-                    f"Registros válidos: "
-                    f"{control['REGISTROS_VALIDOS']}"
+                    f"{control['REGISTROS_VALIDOS']} "
+                    f"registros procesados correctamente"
                 ),
             }
         )
 
-    for clave, valor in control_transformacion.items():
-        registros.append(
-            {
-                "TIPO": "CONSOLIDADO",
-                "ELEMENTO": clave,
-                "DETALLE": valor,
-            }
-        )
+    registros.append(
+        {
+            "TIPO": "RESUMEN",
+            "ELEMENTO": "Total consolidado",
+            "DETALLE": (
+                f"{control_transformacion['REGISTROS_CONSOLIDADOS']} registros"
+            ),
+        }
+    )
 
     return pd.DataFrame(
         registros

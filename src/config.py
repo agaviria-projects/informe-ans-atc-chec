@@ -71,7 +71,7 @@ RUTA_LOG = (
 # ==========================================================
 
 HOJA_DATOS_SALIDA = "DATOS_ANS"
-HOJA_CONTROL = "CONTROL_PROCESO"
+HOJA_CONTROL = "RESUMEN"
 HOJA_DIAS_CONTRACTUALES = "DIAS_CONTRACTUALES"
 
 # Se agregarán posteriormente.
