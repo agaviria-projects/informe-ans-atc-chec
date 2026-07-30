@@ -32,16 +32,15 @@ from src.config import (
     TITULO_PRINCIPAL,
     VERSION_APLICACION,
 )
-from src.lector_csv import (
-    ErrorLecturaCSV,
-    cargar_archivo_entrada,
-)
-from src.validador import validar_dataframe
-
+from src.generador_excel import ErrorGeneracionExcel
 from src.generador_mapa import (
     ErrorGeneracionMapa,
     generar_mapa_demo,
 )
+from src.lector_excel import ErrorLecturaExcel
+from src.procesador_informe import procesar_informe_ans
+from src.transformador import ErrorTransformacion
+
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class AplicacionANS:
     Ventana principal del proyecto Informe ANS.
 
     La interfaz administra la interacción con el usuario.
-    La lectura, validación y procesamiento de datos se delegan
+    La lectura, transformación y generación de archivos se delegan
     a los módulos especializados del proyecto.
     """
 
@@ -72,8 +71,7 @@ class AplicacionANS:
 
     def configurar_ventana(self) -> None:
         """
-        Configura título, tamaño, posición y comportamiento
-        general de la ventana.
+        Configura título, tamaño, posición y comportamiento.
         """
 
         self.root.title(
@@ -107,7 +105,10 @@ class AplicacionANS:
             ALTO_VENTANA,
         )
 
-        self.root.resizable(False, False)
+        self.root.resizable(
+            False,
+            False,
+        )
 
         self.root.protocol(
             "WM_DELETE_WINDOW",
@@ -116,7 +117,7 @@ class AplicacionANS:
 
     def configurar_estilos(self) -> None:
         """
-        Configura los estilos visuales de los componentes ttk.
+        Configura los estilos visuales de componentes ttk.
         """
 
         estilo = ttk.Style()
@@ -145,7 +146,7 @@ class AplicacionANS:
         )
 
     # ==========================================================
-    # CONSTRUCCIÓN DE LA INTERFAZ
+    # CONSTRUCCIÓN DE INTERFAZ
     # ==========================================================
 
     def construir_interfaz(self) -> None:
@@ -162,7 +163,7 @@ class AplicacionANS:
 
     def construir_barra_superior(self) -> None:
         """
-        Construye la barra superior corporativa con reloj.
+        Construye la barra superior con reloj.
         """
 
         barra_superior = tk.Frame(
@@ -175,7 +176,9 @@ class AplicacionANS:
             fill="x"
         )
 
-        barra_superior.pack_propagate(False)
+        barra_superior.pack_propagate(
+            False
+        )
 
         self.reloj = tk.Label(
             barra_superior,
@@ -195,7 +198,7 @@ class AplicacionANS:
 
     def construir_encabezado(self) -> None:
         """
-        Construye un encabezado corporativo limpio y centrado.
+        Construye el encabezado corporativo.
         """
 
         frame_banner = tk.Frame(
@@ -208,7 +211,9 @@ class AplicacionANS:
             fill="x"
         )
 
-        frame_banner.pack_propagate(False)
+        frame_banner.pack_propagate(
+            False
+        )
 
         contenido_banner = tk.Frame(
             frame_banner,
@@ -219,9 +224,50 @@ class AplicacionANS:
             expand=True
         )
 
-        # ======================================================
-        # LOGO CORPORATIVO
-        # ======================================================
+        self.construir_logo(
+            contenido_banner
+        )
+
+        titulo = tk.Label(
+            contenido_banner,
+            text=TITULO_PRINCIPAL,
+            bg=COLOR_FONDO_BANNER,
+            fg=COLOR_TEXTO,
+            font=("Segoe UI", 18, "bold"),
+        )
+
+        titulo.pack(
+            pady=(0, 2)
+        )
+
+        subtitulo = tk.Label(
+            contenido_banner,
+            text=SUBTITULO_PRINCIPAL,
+            bg=COLOR_FONDO_BANNER,
+            fg=COLOR_VERDE_EMPRESA,
+            font=("Segoe UI", 9, "bold"),
+        )
+
+        subtitulo.pack(
+            pady=(0, 2)
+        )
+
+        ttk.Separator(
+            self.root,
+            orient="horizontal",
+            style="ANS.TSeparator",
+        ).pack(
+            fill="x",
+            pady=(0, 10),
+        )
+
+    def construir_logo(
+        self,
+        contenedor: tk.Widget,
+    ) -> None:
+        """
+        Carga y muestra el logo corporativo.
+        """
 
         try:
             if not RUTA_LOGO_EMPRESA.exists():
@@ -243,7 +289,7 @@ class AplicacionANS:
             )
 
             etiqueta_logo = tk.Label(
-                contenido_banner,
+                contenedor,
                 image=self.logo_empresa,
                 bg=COLOR_FONDO_BANNER,
                 borderwidth=0,
@@ -255,7 +301,7 @@ class AplicacionANS:
             )
 
             logger.info(
-                "Logo corporativo cargado correctamente: %s",
+                "Logo corporativo cargado: %s",
                 RUTA_LOGO_EMPRESA.name,
             )
 
@@ -265,7 +311,7 @@ class AplicacionANS:
             )
 
             etiqueta_logo = tk.Label(
-                contenido_banner,
+                contenedor,
                 text="ELITE Ingenieros",
                 bg=COLOR_FONDO_BANNER,
                 fg=COLOR_VERDE_EMPRESA,
@@ -281,50 +327,9 @@ class AplicacionANS:
                 error,
             )
 
-        # ======================================================
-        # TÍTULO
-        # ======================================================
-
-        titulo = tk.Label(
-            contenido_banner,
-            text=TITULO_PRINCIPAL,
-            bg=COLOR_FONDO_BANNER,
-            fg=COLOR_TEXTO,
-            font=("Segoe UI", 18, "bold"),
-        )
-
-        titulo.pack(
-            pady=(0, 2)
-        )
-
-        # ======================================================
-        # SUBTÍTULO
-        # ======================================================
-
-        subtitulo = tk.Label(
-            contenido_banner,
-            text=SUBTITULO_PRINCIPAL,
-            bg=COLOR_FONDO_BANNER,
-            fg=COLOR_VERDE_EMPRESA,
-            font=("Segoe UI", 9, "bold")
-        )
-
-        subtitulo.pack(
-            pady=(0, 2)
-        )
-
-        ttk.Separator(
-            self.root,
-            orient="horizontal",
-            style="ANS.TSeparator",
-        ).pack(
-            fill="x",
-            pady=(0, 10),
-        )
-
     def construir_botones(self) -> None:
         """
-        Construye los botones principales de operación.
+        Construye los botones principales.
         """
 
         contenedor = tk.Frame(
@@ -347,7 +352,7 @@ class AplicacionANS:
         self.btn_informe = self.crear_boton(
             contenedor=contenedor,
             texto="GENERAR\nINFORME ANS",
-            comando=self.iniciar_validacion_csv,
+            comando=self.iniciar_generacion_informe,
             color=COLOR_VERDE_EMPRESA_CLARO,
             color_hover="#A4D65E",
             color_texto=COLOR_TEXTO,
@@ -364,7 +369,7 @@ class AplicacionANS:
         self.btn_mapa = self.crear_boton(
             contenedor=contenedor,
             texto="GENERAR\nMAPA ANS",
-            comando=self.mostrar_mapa_pendiente,
+            comando=self.generar_mapa_ans,
             color=COLOR_VERDE_EMPRESA,
             color_hover=COLOR_PRINCIPAL_HOVER,
             color_texto=COLOR_BLANCO,
@@ -466,7 +471,7 @@ class AplicacionANS:
         color_hover: str,
     ) -> None:
         """
-        Aplica el color hover si el botón está habilitado.
+        Aplica el color hover cuando el botón está habilitado.
         """
 
         if str(boton["state"]) != tk.DISABLED:
@@ -490,7 +495,7 @@ class AplicacionANS:
 
     def construir_progreso(self) -> None:
         """
-        Construye la barra de progreso y su etiqueta.
+        Construye la barra de progreso.
         """
 
         frame_progreso = tk.Frame(
@@ -532,7 +537,7 @@ class AplicacionANS:
 
     def construir_area_log(self) -> None:
         """
-        Construye el área visual donde se informa el proceso.
+        Construye el área de resultados.
         """
 
         frame = tk.Frame(
@@ -547,18 +552,8 @@ class AplicacionANS:
             pady=(0, 8),
         )
 
-        frame_titulo = tk.Frame(
-            frame,
-            bg=COLOR_FONDO,
-        )
-
-        frame_titulo.pack(
-            fill="x",
-            pady=(0, 5),
-        )
-
         titulo = tk.Label(
-            frame_titulo,
+            frame,
             text="Resultado del proceso",
             bg=COLOR_FONDO,
             fg=COLOR_TEXTO,
@@ -567,7 +562,8 @@ class AplicacionANS:
         )
 
         titulo.pack(
-            side="left"
+            fill="x",
+            pady=(0, 5),
         )
 
         self.area_mensajes = scrolledtext.ScrolledText(
@@ -608,12 +604,6 @@ class AplicacionANS:
             foreground="#C0392B",
         )
 
-        self.area_mensajes.tag_config(
-            "titulo",
-            foreground=COLOR_TEXTO,
-            font=("Consolas", 9, "bold"),
-        )
-
         self.agregar_mensaje(
             "Aplicación iniciada correctamente.",
             "correcto",
@@ -625,13 +615,13 @@ class AplicacionANS:
         )
 
         logger.info(
-            "Carpeta de entrada configurada: %s",
+            "Carpeta de entrada: %s",
             ENTRADA_DIR,
         )
 
     def construir_pie_pagina(self) -> None:
         """
-        Construye el pie de página con estado y versión.
+        Construye el pie de página.
         """
 
         ttk.Separator(
@@ -682,12 +672,12 @@ class AplicacionANS:
         )
 
     # ==========================================================
-    # UTILIDADES DE INTERFAZ
+    # UTILIDADES
     # ==========================================================
 
     def actualizar_reloj(self) -> None:
         """
-        Actualiza el reloj superior cada segundo.
+        Actualiza el reloj cada segundo.
         """
 
         hora_actual = datetime.now().strftime(
@@ -709,7 +699,7 @@ class AplicacionANS:
         etiqueta: str = "info",
     ) -> None:
         """
-        Agrega un mensaje con hora al área de resultados.
+        Agrega un mensaje al área de resultados.
         """
 
         hora = datetime.now().strftime(
@@ -739,7 +729,7 @@ class AplicacionANS:
         mensaje: str,
     ) -> None:
         """
-        Actualiza el texto inferior del estado del proceso.
+        Actualiza el estado inferior.
         """
 
         self.estado.configure(
@@ -751,7 +741,7 @@ class AplicacionANS:
         mensaje: str,
     ) -> None:
         """
-        Actualiza el texto ubicado sobre la barra de progreso.
+        Actualiza el texto de la barra de progreso.
         """
 
         self.etiqueta_progreso.configure(
@@ -763,7 +753,7 @@ class AplicacionANS:
         bloquear: bool,
     ) -> None:
         """
-        Habilita o deshabilita los botones durante un proceso.
+        Habilita o deshabilita los botones principales.
         """
 
         estado = (
@@ -780,131 +770,59 @@ class AplicacionANS:
             state=estado
         )
 
-        self.proceso_activo = bloquear
-
-    # ==========================================================
-    # PROCESO DE VALIDACIÓN DEL CSV
-    # ==========================================================
-
-    def iniciar_validacion_csv(self) -> None:
-        """
-        Inicia la validación en un hilo secundario.
-        """
-
-        if self.proceso_activo:
-            return
-
-        self.bloquear_botones(True)
-
-        hilo = threading.Thread(
-            target=self.validar_archivo_csv,
-            daemon=True,
+        self.btn_salida.configure(
+            state=estado
         )
 
-        hilo.start()
+        self.proceso_activo = bloquear
 
-    def validar_archivo_csv(self) -> None:
+    def preparar_proceso(
+        self,
+        estado: str,
+        etiqueta: str,
+        mensaje_log: str,
+    ) -> None:
         """
-        Localiza, lee y valida el archivo CSV.
-        """
-
-        try:
-            self.root.after(
-                0,
-                self.preparar_proceso,
-            )
-
-            ruta_csv, dataframe = (
-                cargar_archivo_entrada()
-            )
-
-            resultado = validar_dataframe(
-                dataframe
-            )
-
-            self.root.after(
-                0,
-                lambda: self.mostrar_resultado_validacion(
-                    ruta_csv.name,
-                    dataframe,
-                    resultado,
-                ),
-            )
-
-        except (
-            FileNotFoundError,
-            ErrorLecturaCSV,
-        ) as error:
-
-            logger.warning(
-                "Validación detenida: %s",
-                error,
-            )
-
-            self.root.after(
-                0,
-                lambda mensaje=str(error): (
-                    self.mostrar_error(mensaje)
-                ),
-            )
-
-        except Exception as error:
-            logger.exception(
-                "Error inesperado durante la validación."
-            )
-
-            self.root.after(
-                0,
-                lambda mensaje=str(error): (
-                    self.mostrar_error(
-                        "Ocurrió un error inesperado.\n\n"
-                        f"Detalle: {mensaje}"
-                    )
-                ),
-            )
-
-        finally:
-            self.root.after(
-                0,
-                self.finalizar_proceso,
-            )
-
-    def preparar_proceso(self) -> None:
-        """
-        Prepara visualmente la aplicación para el proceso.
+        Prepara visualmente un proceso.
         """
 
         self.barra_progreso.configure(
-            mode="indeterminate"
+            mode="indeterminate",
+            value=0,
         )
 
-        self.barra_progreso.start(15)
+        self.barra_progreso.start(
+            15
+        )
 
         self.cambiar_estado(
-            "Validando archivo CSV..."
+            estado
         )
 
         self.cambiar_etiqueta_progreso(
-            "Validando archivo de entrada..."
+            etiqueta
         )
 
         self.agregar_mensaje(
-            "Iniciando validación del archivo CSV.",
+            mensaje_log,
             "info",
         )
 
     def finalizar_proceso(self) -> None:
         """
-        Restablece la interfaz al finalizar el proceso.
+        Restablece la interfaz al finalizar.
         """
 
         self.barra_progreso.stop()
 
         self.barra_progreso.configure(
-            mode="determinate"
+            mode="determinate",
+            value=0,
         )
 
-        self.bloquear_botones(False)
+        self.bloquear_botones(
+            False
+        )
 
         self.cambiar_estado(
             "Esperando acción del usuario..."
@@ -913,98 +831,6 @@ class AplicacionANS:
         self.cambiar_etiqueta_progreso(
             "Estado del proceso"
         )
-
-    def mostrar_resultado_validacion(
-        self,
-        nombre_archivo,
-        dataframe,
-        resultado,
-    ) -> None:
-        """
-        Presenta el resultado de la validación.
-        """
-
-        self.barra_progreso.configure(
-            mode="determinate"
-        )
-
-        self.barra_progreso["value"] = 100
-
-        self.agregar_mensaje(
-            f"Archivo detectado: {nombre_archivo}",
-            "correcto",
-        )
-
-        self.agregar_mensaje(
-            f"Registros encontrados: {len(dataframe):,}",
-            "info",
-        )
-
-        self.agregar_mensaje(
-            f"Columnas encontradas: {len(dataframe.columns)}",
-            "info",
-        )
-
-        self.agregar_mensaje(
-            "Encabezados detectados:",
-            "titulo",
-        )
-
-        for columna in dataframe.columns:
-            self.agregar_mensaje(
-                f"  - {columna}",
-                "info",
-            )
-
-        for advertencia in resultado.advertencias:
-            self.agregar_mensaje(
-                advertencia,
-                "advertencia",
-            )
-
-        for error in resultado.errores:
-            self.agregar_mensaje(
-                error,
-                "error",
-            )
-
-        if resultado.es_valido:
-            self.agregar_mensaje(
-                "La estructura básica del CSV es válida.",
-                "correcto",
-            )
-
-            self.agregar_mensaje(
-                "El cálculo ANS se incorporará cuando se "
-                "confirmen las columnas y reglas contractuales.",
-                "advertencia",
-            )
-
-            messagebox.showinfo(
-                NOMBRE_APLICACION,
-                "El archivo CSV fue leído correctamente.\n\n"
-                f"Registros: {len(dataframe):,}\n"
-                f"Columnas: {len(dataframe.columns)}\n\n"
-                "La estructura está lista para ser analizada.",
-            )
-
-        else:
-            messagebox.showerror(
-                NOMBRE_APLICACION,
-                "El archivo presenta errores estructurales.\n\n"
-                "Revise el área de resultados y el archivo de log.",
-            )
-
-        self.root.after(
-            1500,
-            lambda: self.barra_progreso.configure(
-                value=0
-            ),
-        )
-
-    # ==========================================================
-    # ACCIONES COMPLEMENTARIAS
-    # ==========================================================
 
     def mostrar_error(
         self,
@@ -1024,34 +850,192 @@ class AplicacionANS:
             mensaje,
         )
 
-    def mostrar_mapa_pendiente(self) -> None:
+    # ==========================================================
+    # GENERACIÓN DEL INFORME ANS
+    # ==========================================================
+
+    def iniciar_generacion_informe(self) -> None:
         """
-        Genera y abre el mapa demostrativo de ANS.
+        Inicia el ETL en un hilo secundario.
+        """
+
+        if self.proceso_activo:
+            return
+
+        self.bloquear_botones(
+            True
+        )
+
+        hilo = threading.Thread(
+            target=self.generar_informe_ans,
+            daemon=True,
+        )
+
+        hilo.start()
+
+    def generar_informe_ans(self) -> None:
+        """
+        Unifica Región 1 y Región 2 y genera el informe.
+        """
+
+        try:
+            self.root.after(
+                0,
+                lambda: self.preparar_proceso(
+                    estado="Unificando Región 1 y Región 2...",
+                    etiqueta="Procesando archivos regionales...",
+                    mensaje_log=(
+                        "Iniciando ETL de Región 1 y Región 2."
+                    ),
+                ),
+            )
+
+            ruta_informe, resumen = (
+                procesar_informe_ans()
+            )
+
+            self.root.after(
+                0,
+                lambda: self.mostrar_informe_generado(
+                    ruta_informe,
+                    resumen,
+                ),
+            )
+
+        except (
+            FileNotFoundError,
+            ErrorLecturaExcel,
+            ErrorTransformacion,
+            ErrorGeneracionExcel,
+        ) as error:
+
+            logger.warning(
+                "Generación detenida: %s",
+                error,
+            )
+
+            self.root.after(
+                0,
+                lambda mensaje=str(error): (
+                    self.mostrar_error(mensaje)
+                ),
+            )
+
+        except Exception as error:
+            logger.exception(
+                "Error inesperado al generar el informe."
+            )
+
+            self.root.after(
+                0,
+                lambda mensaje=str(error): (
+                    self.mostrar_error(
+                        "Ocurrió un error inesperado.\n\n"
+                        f"Detalle: {mensaje}"
+                    )
+                ),
+            )
+
+        finally:
+            self.root.after(
+                0,
+                self.finalizar_proceso,
+            )
+
+    def mostrar_informe_generado(
+        self,
+        ruta_informe,
+        resumen: dict,
+    ) -> None:
+        """
+        Presenta el resultado del ETL.
+        """
+
+        self.barra_progreso.stop()
+
+        self.barra_progreso.configure(
+            mode="determinate",
+            value=100,
+        )
+
+        self.agregar_mensaje(
+            f"Archivos procesados: "
+            f"{resumen['ARCHIVOS_PROCESADOS']}",
+            "info",
+        )
+
+        self.agregar_mensaje(
+            f"Registros consolidados: "
+            f"{resumen['REGISTROS_GENERADOS']:,}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"ID_ORDEN duplicados detectados: "
+            f"{resumen['ID_ORDEN_DUPLICADOS']:,}",
+            "advertencia",
+        )
+
+        self.agregar_mensaje(
+            f"Fechas inválidas: "
+            f"{resumen['FECHAS_INVALIDAS']:,}",
+            "advertencia",
+        )
+
+        self.agregar_mensaje(
+            f"Direcciones vacías: "
+            f"{resumen['DIRECCIONES_VACIAS']:,}",
+            "advertencia",
+        )
+
+        self.agregar_mensaje(
+            f"Informe generado: {ruta_informe.name}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            "Las columnas ANS permanecen pendientes hasta "
+            "incorporar la tabla de días contractuales.",
+            "advertencia",
+        )
+
+        messagebox.showinfo(
+            "Informe ANS",
+            "Informe unificado generado correctamente.\n\n"
+            f"Registros: {resumen['REGISTROS_GENERADOS']:,}\n"
+            f"Archivo: {ruta_informe.name}",
+        )
+
+        self.root.after(
+            1500,
+            lambda: self.barra_progreso.configure(
+                value=0
+            ),
+        )
+
+    # ==========================================================
+    # GENERACIÓN DEL MAPA
+    # ==========================================================
+
+    def generar_mapa_ans(self) -> None:
+        """
+        Genera y abre el mapa demostrativo.
         """
 
         if self.proceso_activo:
             return
 
         try:
-            self.bloquear_botones(True)
-
-            self.cambiar_estado(
-                "Generando mapa demostrativo..."
+            self.bloquear_botones(
+                True
             )
 
-            self.cambiar_etiqueta_progreso(
-                "Construyendo mapa ANS..."
-            )
-
-            self.barra_progreso.configure(
-                mode="indeterminate"
-            )
-
-            self.barra_progreso.start(15)
-
-            self.agregar_mensaje(
-                "Iniciando generación del mapa ANS demostrativo.",
-                "info",
+            self.preparar_proceso(
+                estado="Generando mapa demostrativo...",
+                etiqueta="Construyendo mapa ANS...",
+                mensaje_log=(
+                    "Iniciando generación del mapa ANS demostrativo."
+                ),
             )
 
             ruta_mapa = generar_mapa_demo(
@@ -1096,33 +1080,15 @@ class AplicacionANS:
             )
 
         finally:
-            self.barra_progreso.stop()
+            self.finalizar_proceso()
 
-            self.barra_progreso.configure(
-                mode="determinate",
-                value=100,
-            )
-
-            self.bloquear_botones(False)
-
-            self.cambiar_estado(
-                "Esperando acción del usuario..."
-            )
-
-            self.cambiar_etiqueta_progreso(
-                "Estado del proceso"
-            )
-
-            self.root.after(
-                1500,
-                lambda: self.barra_progreso.configure(
-                    value=0
-                ),
-            )
+    # ==========================================================
+    # ACCIONES COMPLEMENTARIAS
+    # ==========================================================
 
     def abrir_carpeta_salida(self) -> None:
         """
-        Abre la carpeta de salida en el explorador del sistema.
+        Abre la carpeta de salida.
         """
 
         try:

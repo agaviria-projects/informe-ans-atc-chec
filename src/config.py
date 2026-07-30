@@ -5,11 +5,11 @@ from pathlib import Path
 # RUTA RAÍZ DEL PROYECTO
 # ==========================================================
 
-# config.py está ubicado en:
+# config.py se encuentra en:
 # Informe_ANS_ATC_CHEC/src/config.py
 #
 # parent        -> src
-# parent.parent -> Informe_ANS_ATC_CHEC
+# parent.parent -> raíz del proyecto
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,6 +22,7 @@ ENTRADA_DIR = BASE_DIR / "entrada"
 SALIDA_DIR = BASE_DIR / "salida"
 LOGS_DIR = BASE_DIR / "logs"
 ASSETS_DIR = BASE_DIR / "assets"
+CONFIG_DIR = BASE_DIR / "config"
 
 
 # ==========================================================
@@ -32,22 +33,61 @@ RUTA_LOGO_EMPRESA = ASSETS_DIR / "elite.png"
 
 
 # ==========================================================
+# ARCHIVOS DE CONFIGURACIÓN
+# ==========================================================
+
+RUTA_DIAS_CONTRACTUALES = (
+    CONFIG_DIR / "DIAS_CONTRACTUALES.xlsx"
+)
+
+
+# ==========================================================
 # ARCHIVOS DE SALIDA
 # ==========================================================
 
 NOMBRE_INFORME_EXCEL = "Informe_ANS_ELITE.xlsx"
 NOMBRE_MAPA_HTML = "Mapa_ANS_ELITE.html"
 
-RUTA_INFORME_EXCEL = SALIDA_DIR / NOMBRE_INFORME_EXCEL
-RUTA_MAPA_HTML = SALIDA_DIR / NOMBRE_MAPA_HTML
-RUTA_LOG = LOGS_DIR / "Informe_ANS_ELITE.log"
+RUTA_INFORME_EXCEL = (
+    SALIDA_DIR / NOMBRE_INFORME_EXCEL
+)
+
+RUTA_MAPA_HTML = (
+    SALIDA_DIR / NOMBRE_MAPA_HTML
+)
+
+RUTA_LOG = (
+    LOGS_DIR / "Informe_ANS_ELITE.log"
+)
+
+
+# ==========================================================
+# HOJAS DEL INFORME
+# ==========================================================
+
+HOJA_DATOS_SALIDA = "DATOS_ANS"
+HOJA_CONTROL = "CONTROL_PROCESO"
+HOJA_DIAS_CONTRACTUALES = "DIAS_CONTRACTUALES"
+
+# Se agregarán posteriormente:
+HOJA_RESUMEN = "RESUMEN"
+HOJA_DASHBOARD = "DASHBOARD_ANS"
 
 
 # ==========================================================
 # CONFIGURACIÓN DE ARCHIVOS DE ENTRADA
 # ==========================================================
 
-EXTENSIONES_CSV_VALIDAS = {".csv"}
+EXTENSIONES_EXCEL_VALIDAS = {
+    ".xlsx",
+    ".xlsm",
+}
+
+# Se conserva soporte CSV para una posible evolución futura,
+# aunque el proceso actual trabajará con archivos Excel.
+EXTENSIONES_CSV_VALIDAS = {
+    ".csv",
+}
 
 CODIFICACIONES_CSV = (
     "utf-8-sig",
@@ -62,6 +102,20 @@ SEPARADORES_CSV = (
     "|",
     "\t",
 )
+
+
+# ==========================================================
+# CONFIGURACIÓN DEL PROCESO
+# ==========================================================
+
+CANTIDAD_ARCHIVOS_REGIONALES = 2
+
+NOMBRE_REGION_1 = "REGION 1"
+NOMBRE_REGION_2 = "REGION 2"
+
+# Este valor queda provisional hasta confirmación del usuario.
+# Define cuántos días restantes se consideran ALERTA.
+UMBRAL_ALERTA_DIAS = 2
 
 
 # ==========================================================
@@ -112,11 +166,11 @@ SUBTITULO_PRINCIPAL = (
 
 def crear_directorios() -> None:
     """
-    Crea las carpetas esenciales del proyecto cuando no existen.
+    Crea las carpetas esenciales cuando no existen.
 
-    Todas las rutas se generan dinámicamente a partir de BASE_DIR,
-    por lo que el proyecto puede ejecutarse desde cualquier equipo
-    sin utilizar rutas absolutas.
+    Todas las rutas se construyen desde BASE_DIR, por lo que
+    el proyecto puede copiarse y ejecutarse en otro computador
+    sin modificar rutas dentro del código.
     """
 
     directorios = (
@@ -124,6 +178,7 @@ def crear_directorios() -> None:
         SALIDA_DIR,
         LOGS_DIR,
         ASSETS_DIR,
+        CONFIG_DIR,
     )
 
     for directorio in directorios:
@@ -142,15 +197,15 @@ def validar_recursos_visuales() -> list[str]:
     Valida los recursos visuales requeridos por la aplicación.
 
     Returns:
-        Lista con los mensajes de advertencia encontrados.
-        La lista estará vacía cuando todos los recursos existan.
+        Lista de advertencias. Estará vacía cuando los recursos
+        visuales existan correctamente.
     """
 
     advertencias: list[str] = []
 
     if not RUTA_LOGO_EMPRESA.exists():
         advertencias.append(
-            f"No se encontró el logo corporativo: "
+            "No se encontró el logo corporativo: "
             f"{RUTA_LOGO_EMPRESA.name}"
         )
 
