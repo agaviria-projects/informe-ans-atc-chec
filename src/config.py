@@ -25,6 +25,7 @@ ASSETS_DIR = BASE_DIR / "assets"
 CONFIG_DIR = BASE_DIR / "config"
 MAPAS_DIR = BASE_DIR / "mapas"
 
+
 # ==========================================================
 # RECURSOS VISUALES
 # ==========================================================
@@ -40,6 +41,10 @@ RUTA_DIAS_CONTRACTUALES = (
     CONFIG_DIR / "DIAS_CONTRACTUALES.xlsx"
 )
 
+RUTA_CACHE_GEOCODIFICACION = (
+    CONFIG_DIR / "CACHE_GEOCODIFICACION.xlsx"
+)
+
 
 # ==========================================================
 # ARCHIVOS DE SALIDA
@@ -52,7 +57,9 @@ RUTA_INFORME_EXCEL = (
     SALIDA_DIR / NOMBRE_INFORME_EXCEL
 )
 
-RUTA_MAPA_HTML = MAPAS_DIR / NOMBRE_MAPA_HTML
+RUTA_MAPA_HTML = (
+    MAPAS_DIR / NOMBRE_MAPA_HTML
+)
 
 RUTA_LOG = (
     LOGS_DIR / "Informe_ANS_ELITE.log"
@@ -67,7 +74,7 @@ HOJA_DATOS_SALIDA = "DATOS_ANS"
 HOJA_CONTROL = "CONTROL_PROCESO"
 HOJA_DIAS_CONTRACTUALES = "DIAS_CONTRACTUALES"
 
-# Se agregarán posteriormente:
+# Se agregarán posteriormente.
 HOJA_RESUMEN = "RESUMEN"
 HOJA_DASHBOARD = "DASHBOARD_ANS"
 
@@ -81,8 +88,7 @@ EXTENSIONES_EXCEL_VALIDAS = {
     ".xlsm",
 }
 
-# Se conserva soporte CSV para una posible evolución futura,
-# aunque el proceso actual trabajará con archivos Excel.
+# Se conserva soporte CSV para una posible evolución futura.
 EXTENSIONES_CSV_VALIDAS = {
     ".csv",
 }
@@ -111,9 +117,24 @@ CANTIDAD_ARCHIVOS_REGIONALES = 2
 NOMBRE_REGION_1 = "REGION 1"
 NOMBRE_REGION_2 = "REGION 2"
 
-# Este valor queda provisional hasta confirmación del usuario.
-# Define cuántos días restantes se consideran ALERTA.
+# Valor provisional hasta confirmar la regla contractual.
 UMBRAL_ALERTA_DIAS = 2
+
+
+# ==========================================================
+# CONFIGURACIÓN DE GEOCODIFICACIÓN Y MAPA
+# ==========================================================
+
+# Primera etapa controlada:
+# se consultan como máximo 10 direcciones nuevas por ejecución.
+#
+# Las coordenadas ya guardadas en caché no cuentan dentro
+# de este límite y se reutilizan automáticamente.
+LIMITE_DIRECCIONES_MAPA = 140
+
+# Tiempo mínimo entre consultas al servicio geográfico.
+# Evita realizar solicitudes demasiado rápidas.
+ESPERA_GEOCODIFICACION_SEGUNDOS = 1.1
 
 
 # ==========================================================
@@ -196,8 +217,8 @@ def validar_recursos_visuales() -> list[str]:
     Valida los recursos visuales requeridos por la aplicación.
 
     Returns:
-        Lista de advertencias. Estará vacía cuando los recursos
-        visuales existan correctamente.
+        Lista de advertencias. Estará vacía cuando todos los
+        recursos visuales existan correctamente.
     """
 
     advertencias: list[str] = []

@@ -1,11 +1,24 @@
 import json
 import logging
 import webbrowser
+
 from datetime import datetime
 from html import escape
 from pathlib import Path
 
-from src.config import MAPAS_DIR, RUTA_MAPA_HTML
+import pandas as pd
+
+from src.config import (
+    HOJA_DATOS_SALIDA,
+    LIMITE_DIRECCIONES_MAPA,
+    MAPAS_DIR,
+    RUTA_INFORME_EXCEL,
+    RUTA_MAPA_HTML,
+)
+from src.geocodificador import (
+    ErrorGeocodificacion,
+    geocodificar_dataframe,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -18,145 +31,370 @@ logger = logging.getLogger(__name__)
 CENTRO_MANIZALES = {
     "latitud": 5.0689,
     "longitud": -75.5174,
-    "zoom": 13,
+    "zoom": 12,
 }
 
 
 # ==========================================================
-# DATOS PROVISIONALES DE DEMOSTRACIÓN
-# ==========================================================
-
-DATOS_MAPA_DEMO = [
-    {
-        "pedido": "DEMO-001",
-        "direccion": "Sector Centro - Dirección demostrativa",
-        "municipio": "MANIZALES",
-        "actividad": "INSTALACIÓN",
-        "estado": "A TIEMPO",
-        "cliente": "CLIENTE DEMOSTRACIÓN 1",
-        "telefono": "3000000001",
-        "dias_restantes": "5 días",
-        "latitud": 5.0689,
-        "longitud": -75.5174,
-    },
-    {
-        "pedido": "DEMO-002",
-        "direccion": "Sector Palogrande - Dirección demostrativa",
-        "municipio": "MANIZALES",
-        "actividad": "REVISIÓN",
-        "estado": "ALERTA",
-        "cliente": "CLIENTE DEMOSTRACIÓN 2",
-        "telefono": "3000000002",
-        "dias_restantes": "2 días",
-        "latitud": 5.0567,
-        "longitud": -75.4918,
-    },
-    {
-        "pedido": "DEMO-003",
-        "direccion": "Sector Chipre - Dirección demostrativa",
-        "municipio": "MANIZALES",
-        "actividad": "MANTENIMIENTO",
-        "estado": "ALERTA 0 DÍAS",
-        "cliente": "CLIENTE DEMOSTRACIÓN 3",
-        "telefono": "3000000003",
-        "dias_restantes": "0 días",
-        "latitud": 5.0738,
-        "longitud": -75.5334,
-    },
-    {
-        "pedido": "DEMO-004",
-        "direccion": "Sector La Enea - Dirección demostrativa",
-        "municipio": "MANIZALES",
-        "actividad": "INSTALACIÓN",
-        "estado": "VENCIDO",
-        "cliente": "CLIENTE DEMOSTRACIÓN 4",
-        "telefono": "3000000004",
-        "dias_restantes": "VENCIDO",
-        "latitud": 5.0358,
-        "longitud": -75.4696,
-    },
-    {
-        "pedido": "DEMO-005",
-        "direccion": "Sector Villamaría - Dirección demostrativa",
-        "municipio": "VILLAMARÍA",
-        "actividad": "REVISIÓN",
-        "estado": "SIN FECHA",
-        "cliente": "CLIENTE DEMOSTRACIÓN 5",
-        "telefono": "3000000005",
-        "dias_restantes": "SIN FECHA",
-        "latitud": 5.0446,
-        "longitud": -75.5143,
-    },
-]
-
-
-# ==========================================================
-# COLORES DE ESTADO
+# COLORES DE LOS ESTADOS ANS
 # ==========================================================
 
 COLORES_ESTADO = {
     "A TIEMPO": "#00B050",
     "ALERTA": "#F4D03F",
-    "ALERTA 0 DÍAS": "#F39C12",
     "VENCIDO": "#E74C3C",
-    "SIN FECHA": "#5D6D7E",
+    "PENDIENTE CONFIGURACIÓN": "#5D6D7E",
 }
 
 
 class ErrorGeneracionMapa(Exception):
-    """Error controlado durante la generación del mapa."""
-
-
-def normalizar_estado(estado: str) -> str:
     """
-    Normaliza el nombre del estado para filtros y colores.
+    Error controlado durante la generación del mapa.
     """
 
-    valor = str(estado).strip().upper()
+
+# ==========================================================
+# LIMPIEZA Y NORMALIZACIÓN
+# ==========================================================
+
+def limpiar_identificador(
+    valor: object,
+) -> str:
+    """
+    Convierte un identificador de Excel en texto limpio.
+
+    También elimina el decimal artificial que puede aparecer
+    al leer valores numéricos, por ejemplo: 1003031018.0.
+    """
+
+    if valor is None:
+        return ""
+
+    try:
+        if pd.isna(valor):
+            return ""
+
+    except (TypeError, ValueError):
+        pass
+
+    texto = str(valor).strip()
+
+    if texto.endswith(".0"):
+        texto = texto[:-2]
+
+    return texto
+
+
+def limpiar_valor(
+    valor: object,
+) -> str:
+    """
+    Convierte valores vacíos en texto vacío.
+    """
+
+    if valor is None:
+        return ""
+
+    try:
+        if pd.isna(valor):
+            return ""
+
+    except (TypeError, ValueError):
+        pass
+
+    return str(valor).strip()
+
+
+def normalizar_estado(
+    estado: object,
+) -> str:
+    """
+    Normaliza el estado ANS utilizado en el mapa.
+    """
+
+    valor = limpiar_valor(
+        estado
+    ).upper()
 
     equivalencias = {
-        "ALERTA_0 DIAS": "ALERTA 0 DÍAS",
-        "ALERTA 0 DIAS": "ALERTA 0 DÍAS",
-        "ALERTA_0 DÍAS": "ALERTA 0 DÍAS",
+        "VENCIDOS": "VENCIDO",
+        "A_TIEMPO": "A TIEMPO",
+        "PENDIENTE CONFIGURACION": (
+            "PENDIENTE CONFIGURACIÓN"
+        ),
     }
 
-    return equivalencias.get(valor, valor)
+    valor = equivalencias.get(
+        valor,
+        valor,
+    )
+
+    if valor not in COLORES_ESTADO:
+        return "PENDIENTE CONFIGURACIÓN"
+
+    return valor
 
 
-def preparar_datos_demo() -> list[dict]:
+def interpretar_zona(
+    zona: object,
+) -> str:
     """
-    Prepara los datos demostrativos para enviarlos al mapa.
+    Convierte el código U/R en su descripción operativa.
     """
 
-    datos_preparados: list[dict] = []
+    valor = limpiar_valor(
+        zona
+    ).upper()
 
-    for registro in DATOS_MAPA_DEMO:
-        item = registro.copy()
+    equivalencias = {
+        "U": "URBANO",
+        "URBANO": "URBANO",
+        "R": "RURAL",
+        "RURAL": "RURAL",
+    }
 
-        item["estado"] = normalizar_estado(
-            item.get("estado", "")
+    return equivalencias.get(
+        valor,
+        valor or "SIN DEFINIR",
+    )
+
+
+# ==========================================================
+# LECTURA DEL INFORME
+# ==========================================================
+
+def cargar_pedidos_reales() -> pd.DataFrame:
+    """
+    Lee la hoja DATOS_ANS del informe consolidado.
+    """
+
+    if not RUTA_INFORME_EXCEL.exists():
+        raise ErrorGeneracionMapa(
+            "No existe Informe_ANS_ELITE.xlsx.\n\n"
+            "Genere primero el informe ANS."
         )
 
-        item["color"] = COLORES_ESTADO.get(
-            item["estado"],
-            "#5D6D7E",
+    try:
+        dataframe = pd.read_excel(
+            RUTA_INFORME_EXCEL,
+            sheet_name=HOJA_DATOS_SALIDA,
+            dtype=object,
+            engine="openpyxl",
         )
 
-        item["url_google_maps"] = (
-            "https://www.google.com/maps/search/?api=1"
-            f"&query={item['latitud']},{item['longitud']}"
+    except PermissionError as error:
+        raise ErrorGeneracionMapa(
+            "No fue posible leer Informe_ANS_ELITE.xlsx.\n\n"
+            "Cierre el archivo en Excel y vuelva a intentar."
+        ) from error
+
+    except ValueError as error:
+        raise ErrorGeneracionMapa(
+            f"No se encontró la hoja {HOJA_DATOS_SALIDA} "
+            "dentro del informe."
+        ) from error
+
+    except Exception as error:
+        logger.exception(
+            "No fue posible leer el informe para generar el mapa."
         )
 
-        datos_preparados.append(item)
+        raise ErrorGeneracionMapa(
+            "No fue posible leer Informe_ANS_ELITE.xlsx."
+        ) from error
 
-    return datos_preparados
+    columnas_requeridas = {
+        "ID_ORDEN",
+        "DIRECCION",
+        "PROPIETARIO",
+        "ZONA",
+        "DESC_MUNICIPIO",
+        "REGION_ORIGEN",
+        "DIAS_RESTANTES",
+        "ESTADO",
+        "OBSERVACION",
+    }
 
+    columnas_faltantes = columnas_requeridas.difference(
+        dataframe.columns
+    )
+
+    if columnas_faltantes:
+        detalle = "\n".join(
+            f"- {columna}"
+            for columna in sorted(
+                columnas_faltantes
+            )
+        )
+
+        raise ErrorGeneracionMapa(
+            "El informe no contiene las columnas necesarias "
+            "para generar el mapa:\n\n"
+            f"{detalle}"
+        )
+
+    dataframe = dataframe[
+        dataframe["ID_ORDEN"].notna()
+    ].copy()
+
+    dataframe = dataframe[
+        dataframe["DIRECCION"].notna()
+    ].copy()
+
+    dataframe["DIRECCION"] = (
+        dataframe["DIRECCION"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    dataframe = dataframe[
+        dataframe["DIRECCION"].ne("")
+    ].copy()
+
+    if dataframe.empty:
+        raise ErrorGeneracionMapa(
+            "El informe no contiene pedidos con dirección."
+        )
+
+    return dataframe.reset_index(
+        drop=True
+    )
+
+
+# ==========================================================
+# PREPARACIÓN DE DATOS PARA LEAFLET
+# ==========================================================
+
+def preparar_datos_reales() -> tuple[list[dict], dict]:
+    """
+    Geocodifica los pedidos reales y prepara los registros
+    que serán enviados al mapa Leaflet.
+    """
+
+    dataframe = cargar_pedidos_reales()
+
+    dataframe_geocodificado, control = (
+        geocodificar_dataframe(
+            dataframe=dataframe,
+            limite_consultas_nuevas=(
+                LIMITE_DIRECCIONES_MAPA
+            ),
+        )
+    )
+
+    dataframe_geocodificado["LATITUD"] = pd.to_numeric(
+        dataframe_geocodificado["LATITUD"],
+        errors="coerce",
+    )
+
+    dataframe_geocodificado["LONGITUD"] = pd.to_numeric(
+        dataframe_geocodificado["LONGITUD"],
+        errors="coerce",
+    )
+
+    ubicaciones_validas = (
+        dataframe_geocodificado
+        .dropna(
+            subset=[
+                "LATITUD",
+                "LONGITUD",
+            ]
+        )
+        .copy()
+    )
+
+    registros: list[dict] = []
+
+    for _, fila in ubicaciones_validas.iterrows():
+
+        latitud = float(
+            fila["LATITUD"]
+        )
+
+        longitud = float(
+            fila["LONGITUD"]
+        )
+
+        estado = normalizar_estado(
+            fila.get("ESTADO")
+        )
+
+        dias_restantes = limpiar_valor(
+            fila.get("DIAS_RESTANTES")
+        )
+
+        if not dias_restantes:
+            dias_restantes = "PENDIENTE"
+
+        registro = {
+            "pedido": limpiar_identificador(
+                fila.get("ID_ORDEN")
+            ),
+            "direccion": limpiar_valor(
+                fila.get("DIRECCION")
+            ),
+            "municipio": limpiar_valor(
+                fila.get("DESC_MUNICIPIO")
+            ),
+            "region": limpiar_valor(
+                fila.get("REGION_ORIGEN")
+            ),
+            "zona": interpretar_zona(
+                fila.get("ZONA")
+            ),
+            "propietario": limpiar_valor(
+                fila.get("PROPIETARIO")
+            ),
+            "estado": estado,
+            "dias_restantes": dias_restantes,
+            "observacion": limpiar_valor(
+                fila.get("OBSERVACION")
+            ),
+            "latitud": latitud,
+            "longitud": longitud,
+            "color": COLORES_ESTADO.get(
+                estado,
+                "#5D6D7E",
+            ),
+            "url_google_maps": (
+                "https://www.google.com/maps/search/?api=1"
+                f"&query={latitud},{longitud}"
+            ),
+        }
+
+        registros.append(
+            registro
+        )
+
+    control["REGISTROS_EN_EL_MAPA"] = len(
+        registros
+    )
+
+    control["TOTAL_PEDIDOS_INFORME"] = len(
+        dataframe
+    )
+
+    if not registros:
+        raise ErrorGeneracionMapa(
+            "No fue posible obtener coordenadas para las "
+            "direcciones procesadas.\n\n"
+            "Revise el archivo "
+            "config/CACHE_GEOCODIFICACION.xlsx."
+        )
+
+    return registros, control
+
+
+# ==========================================================
+# CONSTRUCCIÓN DEL HTML
+# ==========================================================
 
 def construir_html_mapa(
     registros: list[dict],
 ) -> str:
     """
-    Construye el HTML completo del mapa Leaflet.
+    Construye el HTML completo del visor Leaflet.
     """
 
     if not registros:
@@ -173,13 +411,23 @@ def construir_html_mapa(
         "%d/%m/%Y %H:%M:%S"
     )
 
-    latitud_centro = CENTRO_MANIZALES["latitud"]
-    longitud_centro = CENTRO_MANIZALES["longitud"]
-    zoom_inicial = CENTRO_MANIZALES["zoom"]
+    latitud_centro = CENTRO_MANIZALES[
+        "latitud"
+    ]
+
+    longitud_centro = CENTRO_MANIZALES[
+        "longitud"
+    ]
+
+    zoom_inicial = CENTRO_MANIZALES[
+        "zoom"
+    ]
 
     return f"""<!DOCTYPE html>
 <html lang="es">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -199,6 +447,7 @@ def construir_html_mapa(
     </script>
 
     <style>
+
         * {{
             box-sizing: border-box;
         }}
@@ -221,7 +470,7 @@ def construir_html_mapa(
             position: fixed;
             top: 18px;
             right: 18px;
-            width: 330px;
+            width: 340px;
             max-height: calc(100vh - 36px);
             overflow-y: auto;
             padding: 18px;
@@ -237,12 +486,12 @@ def construir_html_mapa(
             font-size: 22px;
         }}
 
-        .panel .subtitulo {{
+        .subtitulo {{
             margin-top: 4px;
             margin-bottom: 16px;
             color: #00843d;
-            font-weight: 600;
             font-size: 13px;
+            font-weight: 600;
         }}
 
         .panel label {{
@@ -295,7 +544,7 @@ def construir_html_mapa(
             background: #2471a3;
         }}
 
-        .boton-whatsapp {{
+        .boton-copiar {{
             background: #25d366;
         }}
 
@@ -330,12 +579,12 @@ def construir_html_mapa(
             text-align: center;
         }}
 
-        .nota-demo {{
+        .nota {{
             margin-top: 12px;
             padding: 9px;
-            border-left: 4px solid #f39c12;
-            background: #fef5e7;
-            color: #7d6608;
+            border-left: 4px solid #2471a3;
+            background: #ebf5fb;
+            color: #1f618d;
             font-size: 12px;
             line-height: 1.4;
         }}
@@ -348,7 +597,8 @@ def construir_html_mapa(
         }}
 
         .popup-ans {{
-            min-width: 260px;
+            min-width: 285px;
+            max-width: 380px;
             line-height: 1.45;
         }}
 
@@ -358,13 +608,26 @@ def construir_html_mapa(
             color: #1b2631;
         }}
 
-        .popup-ans .estado-popup {{
+        .estado-popup {{
             display: inline-block;
             margin-bottom: 9px;
             padding: 5px 9px;
             border-radius: 5px;
             color: #ffffff;
             font-weight: 700;
+        }}
+
+        .dato-popup {{
+            margin-bottom: 4px;
+        }}
+
+        .observacion-popup {{
+            margin-top: 8px;
+            padding: 7px;
+            border-radius: 5px;
+            background: #f4f6f7;
+            max-height: 100px;
+            overflow-y: auto;
         }}
 
         .popup-ans a {{
@@ -394,14 +657,17 @@ def construir_html_mapa(
         }}
 
         @media (max-width: 720px) {{
+
             .panel {{
                 top: 10px;
                 right: 10px;
                 width: calc(100% - 20px);
-                max-height: 52vh;
+                max-height: 55vh;
             }}
         }}
+
     </style>
+
 </head>
 
 <body>
@@ -424,7 +690,7 @@ def construir_html_mapa(
             id="buscarPedido"
             class="campo"
             type="text"
-            placeholder="Ejemplo: DEMO-001"
+            placeholder="Ingrese ID_ORDEN"
         >
 
         <div class="fila-botones">
@@ -469,14 +735,6 @@ def construir_html_mapa(
 
             <button
                 class="estado"
-                style="background:#F39C12"
-                onclick="filtrarEstado('ALERTA 0 DÍAS')"
-            >
-                ALERTA 0 DÍAS
-            </button>
-
-            <button
-                class="estado"
                 style="background:#E74C3C"
                 onclick="filtrarEstado('VENCIDO')"
             >
@@ -486,32 +744,65 @@ def construir_html_mapa(
             <button
                 class="estado"
                 style="background:#5D6D7E"
-                onclick="filtrarEstado('SIN FECHA')"
+                onclick="filtrarEstado(
+                    'PENDIENTE CONFIGURACIÓN'
+                )"
             >
-                SIN FECHA
+                PENDIENTE
             </button>
 
             <button
                 class="estado"
-                style="background:#34495E"
+                style="
+                    background:#34495E;
+                    grid-column:1 / span 2;
+                "
                 onclick="mostrarTodos()"
             >
-                TODOS
+                MOSTRAR TODOS
             </button>
 
         </div>
 
-        <label for="actividadFiltro">
-            Actividad
+        <label for="regionFiltro">
+            Región
         </label>
 
         <select
-            id="actividadFiltro"
+            id="regionFiltro"
             class="selector"
-            onchange="filtrarActividad()"
+            onchange="filtrarRegion()"
         >
             <option value="">
-                Todas las actividades
+                Todas las regiones
+            </option>
+        </select>
+
+        <label for="zonaFiltro">
+            Zona
+        </label>
+
+        <select
+            id="zonaFiltro"
+            class="selector"
+            onchange="filtrarZona()"
+        >
+            <option value="">
+                Todas las zonas
+            </option>
+        </select>
+
+        <label for="municipioFiltro">
+            Municipio
+        </label>
+
+        <select
+            id="municipioFiltro"
+            class="selector"
+            onchange="filtrarMunicipio()"
+        >
+            <option value="">
+                Todos los municipios
             </option>
         </select>
 
@@ -525,7 +816,7 @@ def construir_html_mapa(
             </button>
 
             <button
-                class="boton boton-whatsapp"
+                class="boton boton-copiar"
                 onclick="copiarPedidoSeleccionado()"
             >
                 Copiar datos
@@ -540,10 +831,9 @@ def construir_html_mapa(
             Registros visibles: 0
         </div>
 
-        <div class="nota-demo">
-            Este mapa utiliza cinco ubicaciones demostrativas.
-            Las direcciones y coordenadas deberán reemplazarse
-            cuando se reciba el CSV oficial.
+        <div class="nota">
+            El visor muestra únicamente los pedidos que cuentan
+            con coordenadas obtenidas a partir de la dirección.
         </div>
 
         <div class="fecha">
@@ -552,9 +842,7 @@ def construir_html_mapa(
 
     </div>
 
-    <div id="toast">
-        Información copiada correctamente.
-    </div>
+    <div id="toast"></div>
 
     <script>
 
@@ -567,7 +855,9 @@ def construir_html_mapa(
 
         const zoomInicial = {zoom_inicial};
 
-        const map = L.map("map").setView(
+        const map = L.map(
+            "map"
+        ).setView(
             centroInicial,
             zoomInicial
         );
@@ -583,8 +873,11 @@ def construir_html_mapa(
 
         let marcadores = [];
         let marcadorSeleccionado = null;
+
         let estadoActivo = "";
-        let actividadActiva = "";
+        let regionActiva = "";
+        let zonaActiva = "";
+        let municipioActivo = "";
 
         function crearIcono(color) {{
 
@@ -606,7 +899,8 @@ def construir_html_mapa(
                             margin:6px;
                             border-radius:50%;
                             background:#ffffff;
-                        "></div>
+                        ">
+                        </div>
                     </div>
                 `,
                 iconSize: [30, 30],
@@ -641,34 +935,39 @@ def construir_html_mapa(
                         ${{escaparHtml(registro.estado)}}
                     </span>
 
-                    <div>
+                    <div class="dato-popup">
                         <b>Dirección:</b>
                         ${{escaparHtml(registro.direccion)}}
                     </div>
 
-                    <div>
+                    <div class="dato-popup">
                         <b>Municipio:</b>
                         ${{escaparHtml(registro.municipio)}}
                     </div>
 
-                    <div>
-                        <b>Actividad:</b>
-                        ${{escaparHtml(registro.actividad)}}
+                    <div class="dato-popup">
+                        <b>Región:</b>
+                        ${{escaparHtml(registro.region)}}
                     </div>
 
-                    <div>
-                        <b>Cliente:</b>
-                        ${{escaparHtml(registro.cliente)}}
+                    <div class="dato-popup">
+                        <b>Zona:</b>
+                        ${{escaparHtml(registro.zona)}}
                     </div>
 
-                    <div>
-                        <b>Teléfono:</b>
-                        ${{escaparHtml(registro.telefono)}}
+                    <div class="dato-popup">
+                        <b>Propietario:</b>
+                        ${{escaparHtml(registro.propietario)}}
                     </div>
 
-                    <div>
+                    <div class="dato-popup">
                         <b>Días restantes:</b>
                         ${{escaparHtml(registro.dias_restantes)}}
+                    </div>
+
+                    <div class="observacion-popup">
+                        <b>Observación:</b><br>
+                        ${{escaparHtml(registro.observacion)}}
                     </div>
 
                     <a
@@ -683,9 +982,32 @@ def construir_html_mapa(
             `;
         }}
 
+        function agregarOpcion(
+            selectorId,
+            valor
+        ) {{
+
+            const selector = document.getElementById(
+                selectorId
+            );
+
+            const opcion = document.createElement(
+                "option"
+            );
+
+            opcion.value = valor;
+            opcion.textContent = valor;
+
+            selector.appendChild(
+                opcion
+            );
+        }}
+
         function crearMarcadores() {{
 
-            const actividades = new Set();
+            const regiones = new Set();
+            const zonas = new Set();
+            const municipios = new Set();
 
             registros.forEach(registro => {{
 
@@ -695,7 +1017,9 @@ def construir_html_mapa(
                         registro.longitud
                     ],
                     {{
-                        icon: crearIcono(registro.color)
+                        icon: crearIcono(
+                            registro.color
+                        )
                     }}
                 );
 
@@ -705,35 +1029,63 @@ def construir_html_mapa(
                     construirPopup(registro)
                 );
 
-                marcador.on("click", () => {{
-                    marcadorSeleccionado = marcador;
-                }});
+                marcador.on(
+                    "click",
+                    () => {{
+                        marcadorSeleccionado = marcador;
+                    }}
+                );
 
                 marcador.addTo(map);
 
-                marcadores.push(marcador);
-
-                actividades.add(
-                    registro.actividad
+                marcadores.push(
+                    marcador
                 );
+
+                if (registro.region) {{
+                    regiones.add(
+                        registro.region
+                    );
+                }}
+
+                if (registro.zona) {{
+                    zonas.add(
+                        registro.zona
+                    );
+                }}
+
+                if (registro.municipio) {{
+                    municipios.add(
+                        registro.municipio
+                    );
+                }}
             }});
 
-            const selector = document.getElementById(
-                "actividadFiltro"
-            );
-
-            Array.from(actividades)
+            Array.from(regiones)
                 .sort()
-                .forEach(actividad => {{
-
-                    const opcion = document.createElement(
-                        "option"
+                .forEach(valor => {{
+                    agregarOpcion(
+                        "regionFiltro",
+                        valor
                     );
+                }});
 
-                    opcion.value = actividad;
-                    opcion.textContent = actividad;
+            Array.from(zonas)
+                .sort()
+                .forEach(valor => {{
+                    agregarOpcion(
+                        "zonaFiltro",
+                        valor
+                    );
+                }});
 
-                    selector.appendChild(opcion);
+            Array.from(municipios)
+                .sort()
+                .forEach(valor => {{
+                    agregarOpcion(
+                        "municipioFiltro",
+                        valor
+                    );
                 }});
 
             actualizarContador();
@@ -747,11 +1099,24 @@ def construir_html_mapa(
                 !estadoActivo
                 || registro.estado === estadoActivo;
 
-            const cumpleActividad =
-                !actividadActiva
-                || registro.actividad === actividadActiva;
+            const cumpleRegion =
+                !regionActiva
+                || registro.region === regionActiva;
 
-            return cumpleEstado && cumpleActividad;
+            const cumpleZona =
+                !zonaActiva
+                || registro.zona === zonaActiva;
+
+            const cumpleMunicipio =
+                !municipioActivo
+                || registro.municipio === municipioActivo;
+
+            return (
+                cumpleEstado
+                && cumpleRegion
+                && cumpleZona
+                && cumpleMunicipio
+            );
         }}
 
         function aplicarFiltros() {{
@@ -781,10 +1146,28 @@ def construir_html_mapa(
             aplicarFiltros();
         }}
 
-        function filtrarActividad() {{
+        function filtrarRegion() {{
 
-            actividadActiva = document
-                .getElementById("actividadFiltro")
+            regionActiva = document
+                .getElementById("regionFiltro")
+                .value;
+
+            aplicarFiltros();
+        }}
+
+        function filtrarZona() {{
+
+            zonaActiva = document
+                .getElementById("zonaFiltro")
+                .value;
+
+            aplicarFiltros();
+        }}
+
+        function filtrarMunicipio() {{
+
+            municipioActivo = document
+                .getElementById("municipioFiltro")
                 .value;
 
             aplicarFiltros();
@@ -793,10 +1176,20 @@ def construir_html_mapa(
         function mostrarTodos() {{
 
             estadoActivo = "";
-            actividadActiva = "";
+            regionActiva = "";
+            zonaActiva = "";
+            municipioActivo = "";
 
             document.getElementById(
-                "actividadFiltro"
+                "regionFiltro"
+            ).value = "";
+
+            document.getElementById(
+                "zonaFiltro"
+            ).value = "";
+
+            document.getElementById(
+                "municipioFiltro"
             ).value = "";
 
             marcadores.forEach(marcador => {{
@@ -819,8 +1212,9 @@ def construir_html_mapa(
                 .toUpperCase();
 
             if (!valor) {{
+
                 mostrarToast(
-                    "Ingrese un número de pedido."
+                    "Ingrese un ID_ORDEN."
                 );
 
                 return;
@@ -833,8 +1227,9 @@ def construir_html_mapa(
             );
 
             if (!encontrado) {{
+
                 mostrarToast(
-                    "Pedido no encontrado."
+                    "El pedido no está disponible en el mapa."
                 );
 
                 return;
@@ -842,11 +1237,13 @@ def construir_html_mapa(
 
             marcadores.forEach(marcador => {{
 
-                if (marcador !== encontrado) {{
-
-                    if (map.hasLayer(marcador)) {{
-                        map.removeLayer(marcador);
-                    }}
+                if (
+                    marcador !== encontrado
+                    && map.hasLayer(marcador)
+                ) {{
+                    map.removeLayer(
+                        marcador
+                    );
                 }}
             }});
 
@@ -893,6 +1290,16 @@ def construir_html_mapa(
                 return;
             }}
 
+            if (visibles.length === 1) {{
+
+                map.setView(
+                    visibles[0].getLatLng(),
+                    16
+                );
+
+                return;
+            }}
+
             const grupo = L.featureGroup(
                 visibles
             );
@@ -925,28 +1332,33 @@ def construir_html_mapa(
                 return;
             }}
 
-            const registro =
-                marcadorSeleccionado.registro;
+            const registro = (
+                marcadorSeleccionado.registro
+            );
 
             const texto = [
                 `Pedido: ${{registro.pedido}}`,
                 `Estado: ${{registro.estado}}`,
                 `Dirección: ${{registro.direccion}}`,
                 `Municipio: ${{registro.municipio}}`,
-                `Actividad: ${{registro.actividad}}`,
-                `Cliente: ${{registro.cliente}}`,
-                `Teléfono: ${{registro.telefono}}`,
+                `Región: ${{registro.region}}`,
+                `Zona: ${{registro.zona}}`,
+                `Propietario: ${{registro.propietario}}`,
+                `Días restantes: ${{registro.dias_restantes}}`,
+                `Observación: ${{registro.observacion}}`,
                 `Ubicación: ${{registro.url_google_maps}}`
             ].join("\\n");
 
             navigator.clipboard
                 .writeText(texto)
                 .then(() => {{
+
                     mostrarToast(
                         "Información copiada correctamente."
                     );
                 }})
                 .catch(() => {{
+
                     mostrarToast(
                         "No fue posible copiar la información."
                     );
@@ -962,9 +1374,12 @@ def construir_html_mapa(
             toast.textContent = mensaje;
             toast.style.display = "block";
 
-            setTimeout(() => {{
-                toast.style.display = "none";
-            }}, 2500);
+            setTimeout(
+                () => {{
+                    toast.style.display = "none";
+                }},
+                2500
+            );
         }}
 
         crearMarcadores();
@@ -977,22 +1392,20 @@ def construir_html_mapa(
     </script>
 
 </body>
+
 </html>
 """
 
 
-def generar_mapa_demo(
+# ==========================================================
+# GENERACIÓN DEL MAPA
+# ==========================================================
+
+def generar_mapa_desde_informe(
     abrir_navegador: bool = True,
-) -> Path:
+) -> tuple[Path, dict]:
     """
-    Genera el mapa provisional con cinco registros demostrativos.
-
-    Args:
-        abrir_navegador:
-            Abre automáticamente el mapa al finalizar.
-
-    Returns:
-        Ruta del archivo HTML generado.
+    Genera el mapa utilizando los pedidos reales del informe.
     """
 
     try:
@@ -1001,7 +1414,7 @@ def generar_mapa_demo(
             exist_ok=True,
         )
 
-        registros = preparar_datos_demo()
+        registros, control = preparar_datos_reales()
 
         contenido_html = construir_html_mapa(
             registros
@@ -1013,7 +1426,7 @@ def generar_mapa_demo(
         )
 
         logger.info(
-            "Mapa demostrativo generado correctamente: %s",
+            "Mapa ANS generado correctamente: %s",
             RUTA_MAPA_HTML,
         )
 
@@ -1022,11 +1435,27 @@ def generar_mapa_demo(
                 RUTA_MAPA_HTML.resolve().as_uri()
             )
 
-        return RUTA_MAPA_HTML
+        return RUTA_MAPA_HTML, control
+
+    except (
+        ErrorGeocodificacion,
+        ErrorGeneracionMapa,
+    ):
+        raise
+
+    except PermissionError as error:
+        logger.exception(
+            "No fue posible guardar el mapa."
+        )
+
+        raise ErrorGeneracionMapa(
+            "No fue posible guardar Mapa_ANS_ELITE.html.\n\n"
+            "Cierre el archivo o el navegador y vuelva a intentar."
+        ) from error
 
     except OSError as error:
         logger.exception(
-            "Error al guardar el mapa demostrativo."
+            "Error del sistema al guardar el mapa."
         )
 
         raise ErrorGeneracionMapa(
@@ -1044,10 +1473,17 @@ def generar_mapa_demo(
 
 
 if __name__ == "__main__":
-    ruta = generar_mapa_demo(
-        abrir_navegador=True
+
+    ruta_generada, resumen = (
+        generar_mapa_desde_informe(
+            abrir_navegador=True
+        )
     )
 
     print(
-        f"Mapa generado correctamente: {ruta}"
+        f"Mapa generado correctamente: {ruta_generada}"
+    )
+
+    print(
+        resumen
     )

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -20,6 +22,7 @@
     </script>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
@@ -42,7 +45,7 @@
             position: fixed;
             top: 18px;
             right: 18px;
-            width: 330px;
+            width: 340px;
             max-height: calc(100vh - 36px);
             overflow-y: auto;
             padding: 18px;
@@ -58,12 +61,12 @@
             font-size: 22px;
         }
 
-        .panel .subtitulo {
+        .subtitulo {
             margin-top: 4px;
             margin-bottom: 16px;
             color: #00843d;
-            font-weight: 600;
             font-size: 13px;
+            font-weight: 600;
         }
 
         .panel label {
@@ -116,7 +119,7 @@
             background: #2471a3;
         }
 
-        .boton-whatsapp {
+        .boton-copiar {
             background: #25d366;
         }
 
@@ -151,12 +154,12 @@
             text-align: center;
         }
 
-        .nota-demo {
+        .nota {
             margin-top: 12px;
             padding: 9px;
-            border-left: 4px solid #f39c12;
-            background: #fef5e7;
-            color: #7d6608;
+            border-left: 4px solid #2471a3;
+            background: #ebf5fb;
+            color: #1f618d;
             font-size: 12px;
             line-height: 1.4;
         }
@@ -169,7 +172,8 @@
         }
 
         .popup-ans {
-            min-width: 260px;
+            min-width: 285px;
+            max-width: 380px;
             line-height: 1.45;
         }
 
@@ -179,13 +183,26 @@
             color: #1b2631;
         }
 
-        .popup-ans .estado-popup {
+        .estado-popup {
             display: inline-block;
             margin-bottom: 9px;
             padding: 5px 9px;
             border-radius: 5px;
             color: #ffffff;
             font-weight: 700;
+        }
+
+        .dato-popup {
+            margin-bottom: 4px;
+        }
+
+        .observacion-popup {
+            margin-top: 8px;
+            padding: 7px;
+            border-radius: 5px;
+            background: #f4f6f7;
+            max-height: 100px;
+            overflow-y: auto;
         }
 
         .popup-ans a {
@@ -215,14 +232,17 @@
         }
 
         @media (max-width: 720px) {
+
             .panel {
                 top: 10px;
                 right: 10px;
                 width: calc(100% - 20px);
-                max-height: 52vh;
+                max-height: 55vh;
             }
         }
+
     </style>
+
 </head>
 
 <body>
@@ -245,7 +265,7 @@
             id="buscarPedido"
             class="campo"
             type="text"
-            placeholder="Ejemplo: DEMO-001"
+            placeholder="Ingrese ID_ORDEN"
         >
 
         <div class="fila-botones">
@@ -290,14 +310,6 @@
 
             <button
                 class="estado"
-                style="background:#F39C12"
-                onclick="filtrarEstado('ALERTA 0 DÍAS')"
-            >
-                ALERTA 0 DÍAS
-            </button>
-
-            <button
-                class="estado"
                 style="background:#E74C3C"
                 onclick="filtrarEstado('VENCIDO')"
             >
@@ -307,32 +319,65 @@
             <button
                 class="estado"
                 style="background:#5D6D7E"
-                onclick="filtrarEstado('SIN FECHA')"
+                onclick="filtrarEstado(
+                    'PENDIENTE CONFIGURACIÓN'
+                )"
             >
-                SIN FECHA
+                PENDIENTE
             </button>
 
             <button
                 class="estado"
-                style="background:#34495E"
+                style="
+                    background:#34495E;
+                    grid-column:1 / span 2;
+                "
                 onclick="mostrarTodos()"
             >
-                TODOS
+                MOSTRAR TODOS
             </button>
 
         </div>
 
-        <label for="actividadFiltro">
-            Actividad
+        <label for="regionFiltro">
+            Región
         </label>
 
         <select
-            id="actividadFiltro"
+            id="regionFiltro"
             class="selector"
-            onchange="filtrarActividad()"
+            onchange="filtrarRegion()"
         >
             <option value="">
-                Todas las actividades
+                Todas las regiones
+            </option>
+        </select>
+
+        <label for="zonaFiltro">
+            Zona
+        </label>
+
+        <select
+            id="zonaFiltro"
+            class="selector"
+            onchange="filtrarZona()"
+        >
+            <option value="">
+                Todas las zonas
+            </option>
+        </select>
+
+        <label for="municipioFiltro">
+            Municipio
+        </label>
+
+        <select
+            id="municipioFiltro"
+            class="selector"
+            onchange="filtrarMunicipio()"
+        >
+            <option value="">
+                Todos los municipios
             </option>
         </select>
 
@@ -346,7 +391,7 @@
             </button>
 
             <button
-                class="boton boton-whatsapp"
+                class="boton boton-copiar"
                 onclick="copiarPedidoSeleccionado()"
             >
                 Copiar datos
@@ -361,34 +406,33 @@
             Registros visibles: 0
         </div>
 
-        <div class="nota-demo">
-            Este mapa utiliza cinco ubicaciones demostrativas.
-            Las direcciones y coordenadas deberán reemplazarse
-            cuando se reciba el CSV oficial.
+        <div class="nota">
+            El visor muestra únicamente los pedidos que cuentan
+            con coordenadas obtenidas a partir de la dirección.
         </div>
 
         <div class="fecha">
-            Generado: 30/07/2026 09:56:10
+            Generado: 30/07/2026 11:27:49
         </div>
 
     </div>
 
-    <div id="toast">
-        Información copiada correctamente.
-    </div>
+    <div id="toast"></div>
 
     <script>
 
-        const registros = [{"pedido": "DEMO-001", "direccion": "Sector Centro - Dirección demostrativa", "municipio": "MANIZALES", "actividad": "INSTALACIÓN", "estado": "A TIEMPO", "cliente": "CLIENTE DEMOSTRACIÓN 1", "telefono": "3000000001", "dias_restantes": "5 días", "latitud": 5.0689, "longitud": -75.5174, "color": "#00B050", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0689,-75.5174"}, {"pedido": "DEMO-002", "direccion": "Sector Palogrande - Dirección demostrativa", "municipio": "MANIZALES", "actividad": "REVISIÓN", "estado": "ALERTA", "cliente": "CLIENTE DEMOSTRACIÓN 2", "telefono": "3000000002", "dias_restantes": "2 días", "latitud": 5.0567, "longitud": -75.4918, "color": "#F4D03F", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0567,-75.4918"}, {"pedido": "DEMO-003", "direccion": "Sector Chipre - Dirección demostrativa", "municipio": "MANIZALES", "actividad": "MANTENIMIENTO", "estado": "ALERTA 0 DÍAS", "cliente": "CLIENTE DEMOSTRACIÓN 3", "telefono": "3000000003", "dias_restantes": "0 días", "latitud": 5.0738, "longitud": -75.5334, "color": "#F39C12", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0738,-75.5334"}, {"pedido": "DEMO-004", "direccion": "Sector La Enea - Dirección demostrativa", "municipio": "MANIZALES", "actividad": "INSTALACIÓN", "estado": "VENCIDO", "cliente": "CLIENTE DEMOSTRACIÓN 4", "telefono": "3000000004", "dias_restantes": "VENCIDO", "latitud": 5.0358, "longitud": -75.4696, "color": "#E74C3C", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0358,-75.4696"}, {"pedido": "DEMO-005", "direccion": "Sector Villamaría - Dirección demostrativa", "municipio": "VILLAMARÍA", "actividad": "REVISIÓN", "estado": "SIN FECHA", "cliente": "CLIENTE DEMOSTRACIÓN 5", "telefono": "3000000005", "dias_restantes": "SIN FECHA", "latitud": 5.0446, "longitud": -75.5143, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0446,-75.5143"}];
+        const registros = [{"pedido": "10030897", "direccion": "CLL 23B 6 30 P2 - SANTA LUCÍA", "municipio": "La Dorada", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 50990011563 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros:;3136410778/3136410778 ; Proceso creado automáticamente por el sistema desde el proceso 4150.", "latitud": 5.4601567, "longitud": -74.6689535, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4601567,-74.6689535"}, {"pedido": "10030887", "direccion": "CRA 9 5A 08 LA MAGDALENA - LA MAGDALENA", "municipio": "La Dorada", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 50990011020 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros:;3103718909/3103718909 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3103718909", "latitud": 5.4454524, "longitud": -74.6654968, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4454524,-74.6654968"}, {"pedido": "10031006", "direccion": "CLL 48 H 5 B 23 PSO 2 - BENGALA", "municipio": "Manizales", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 10000006799 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - ;3137065194/3137065194 ; CLIENTE SOLICITA VISITA POSTERIOR, YA REALIZO ADECUACIONES.  ; 3137065194", "latitud": 5.0781838, "longitud": -75.4906036, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0781838,-75.4906036"}, {"pedido": "10031009", "direccion": "CRA 12 A 65 46 PIS 2 - BARRIO SIN DEFINI", "municipio": "Manizales", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 10000007272 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - ;3113547293/3113547293 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3113547293", "latitud": 5.0731967, "longitud": -75.4964859, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0731967,-75.4964859"}, {"pedido": "10031013", "direccion": "CRA 10 1 04 APTO ENSEG CAFET - BARRIO SI", "municipio": "Pensilvania", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 50990010998 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Provisional - Ubic:Urbano - Activ:SIN REGISTRAR - Clasf:Nivel 1 - ;3136770560/3136770560 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3113176388", "latitud": 5.3818815, "longitud": -75.1638676, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.3818815,-75.1638676"}, {"pedido": "10031014", "direccion": "CRA 9 12 64 GARAJE - CENTRO TRADICIONAL", "municipio": "Neira", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 10000007274 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros:;3202081583/3202081583 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3202081583", "latitud": 5.1656553, "longitud": -75.5205514, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.1656553,-75.5205514"}, {"pedido": "10031018", "direccion": "SECTOR SENA - SAN DIEGO", "municipio": "Samana", "region": "REGION 1", "zona": "RURAL", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 50990011310 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Rural - Activ:Sin definir - Clasf:Visita posterior - ;3173068275/3173068275 ; VISITA POSTERIOR LLAMAR ANTES DE ACERCARSE AL NÚMERO 3173068275. ; 3173068275", "latitud": 5.6656835, "longitud": -74.9336693, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.6656835,-74.9336693"}, {"pedido": "10031019", "direccion": "CLL 6A 22 B 18 MZ H LOTE 140 PISO 3 MIRA", "municipio": "Chinchina", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 10000007219 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros:;3002272526/3002272526 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3002272526", "latitud": 4.9761265, "longitud": -75.603751, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=4.9761265,-75.603751"}, {"pedido": "10031022", "direccion": "CLL 48 H 5 B 23 PISO 3 - BENGALA", "municipio": "Manizales", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 10000007130 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:SIN REGISTRAR - Clasf:Visita posterior - ;3137065194/3137065194 ; CLIENTE SOLICITA VISITA POSTERIOR, YA REALIZO ADECUACIONES.  ; 3137065194", "latitud": 5.0781838, "longitud": -75.4906036, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0781838,-75.4906036"}, {"pedido": "10030534", "direccion": "CLL 62 A 9 B1 24 - LA CUMBRE", "municipio": "Manizales", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 10000006119 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - ;3045803206/3165317695 ; USUARIO SOLICITA VISITA POSTERIOR, INFORMA QUE YA REALIZO LAS ADECUACIONES. ; 3045803206", "latitud": 5.0678603, "longitud": -75.473166, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0678603,-75.473166"}, {"pedido": "10030539", "direccion": "CLL 50A 2B 55 MNZ O LOT 10 - BARRIO SIN", "municipio": "La Dorada", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 50290250118 - Mot.Rv:Cambio de provisional a definitivo/Cambio de provisional a definitivo - Estado: Activo/Con suministro - Tarifa:GENERICA - Ciclo:15 - Cl.Serv:Provisional - Ubic:Urbano - Activ:Sin definir - Clasf:Cambio de provisional a definitivo - Otros: ;3116031328/3122732088 ; 3116031328 - 3146439044. CAMBIO DE PROVISIONAL A DEFINITIVO. ; 3122732088", "latitud": 5.4775684, "longitud": -74.6803817, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4775684,-74.6803817"}, {"pedido": "10030573", "direccion": "CRA 31 B 67 B 57 PIS 2 - FATIMA", "municipio": "Manizales", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 10000007098 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros:;3218745545/3218745545 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3117829207", "latitud": 5.0525537, "longitud": -75.4964825, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0525537,-75.4964825"}, {"pedido": "10030290", "direccion": "CLL 19 36 23 APT 1 - EL CARMEN", "municipio": "Manizales", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 10000005936 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - Otros: ;3136267136/3136267136 ; Solicita nueva visita para la conexión del servicio. Argumenta que ya realizo las adeciaciones.", "latitud": 5.0571257, "longitud": -75.5187658, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0571257,-75.5187658"}, {"pedido": "10030762", "direccion": "CRA 1 34A 29 - LA CONCORDIA", "municipio": "La Dorada", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 50990011293 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - Otros:Llamar antes de ir: 3127913949 - 3144811857. Conexión de servicio ;3127913949/3127913949 ; usuaria solicita nueva visita para conexion de servicio ; 3144811857", "latitud": 5.4513719, "longitud": -74.6613207, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4513719,-74.6613207"}, {"pedido": "10030775", "direccion": "CRA 3 1 2 - RENÁN BARCO", "municipio": "La Dorada", "region": "REGION 1", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 50290023216 - Mot.Rv:Cambio de provisional a definitivo/Cambio de provisional a definitivo - Estado: Activo/Con suministro - Tarifa:GENERICA - Ciclo:15 - Cl.Serv:Provisional - Ubic:Urbano - Activ:Sin definir - Clasf:Cambio de provisional a definitivo - Otros: ;3122054692/3122054692 ; Usuario solicita cambio de provisional a definitivo. Contacto: 3122054692.  ; 3122054692", "latitud": 5.4497057, "longitud": -74.6616862, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4497057,-74.6616862"}, {"pedido": "10030392", "direccion": "CRA 4 A 2 25 - SAN ANTONIO ARMA", "municipio": "Aguadas", "region": "REGION 2", "zona": "RURAL", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990010764 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Rural - Activ:Sin definir - Clasf:Visita posterior - ;3108308859/3108308859 ; Usuario solicita nuevamente la visita e informa que ya fueron subsanadas las correcciones indicadas durante la visita anterior.", "latitud": 5.6026528, "longitud": -75.4508021, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.6026528,-75.4508021"}, {"pedido": "10030430", "direccion": "CLL 8 7 43 - BARRIO SIN DEFINIR", "municipio": "Viterbo", "region": "REGION 2", "zona": "URBANO", "propietario": "JULIO RAMIREZ", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 30130937800 - Mot.Rv:Interventoría/Interventoría de conexión - Estado: Activo/Con suministro - Tarifa:GENERICA - Ciclo:380 - Cl.Serv:Comercial - Ubic:Urbano - Activ:Comercio menor produc farmacé medici cosmético - Clasf:Interventoría de conexión - ;JORGE IVAN VELASQUEZ RESTREPO  3143788781 validar estado de internas", "latitud": 5.0620291, "longitud": -75.8727997, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.0620291,-75.8727997"}, {"pedido": "10030448", "direccion": "CLL 8 B 2 63 BRR LA PLAYA - BARRIO SIN D", "municipio": "Viterbo", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 30001670107 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros: ;3217499057/3217499057 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3217499057", "latitud": 5.060256, "longitud": -75.8688976, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.060256,-75.8688976"}, {"pedido": "10030781", "direccion": "CLL 10 13 137 PSI 2 - AURORA 1", "municipio": "Marsella", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 30082350255 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:384 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - Otros:;3113619031/3113619031 ; SOLICITA NUEVA VISITA COORDINAR VISITA AL CELULAR3113619031 ; 3113619031", "latitud": 5.4525315, "longitud": -75.7669431, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4525315,-75.7669431"}, {"pedido": "10030847", "direccion": "CLL 6 10 66 APT 1 - SAN CAYETANO", "municipio": "La Virginia", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 60990010811 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:680 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - Otros:;3177292991/3114417500 ; Tel. 3177292991 llamar para programar visita, ya realizó las adecuaciones solicitadas ; 3114417500", "latitud": 5.4338138, "longitud": -75.3773147, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4338138,-75.3773147"}, {"pedido": "10030856", "direccion": "VDA LA QUINTA - Vereda La Quinta", "municipio": "Supia", "region": "REGION 2", "zona": "RURAL", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990010798 - Mot.Rv:Factibilidad del servicio/Cuenta nueva - Estado: No matriculado/Proceso de vinculación - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Provisional - Ubic:Rural - Activ:SIN REGISTRAR - Clasf:Nivel 1 - ;3008814392/3008814392 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3008814392", "latitud": 5.4840767, "longitud": -75.6424218, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4840767,-75.6424218"}, {"pedido": "10030858", "direccion": "NOA CL 5 13 24 - BARRIO SIN DEFINIR", "municipio": "Riosucio", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990010793 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - ;3207904670/3207904670 ; CLIENTE SOLICITA VISITA POSTERIOR, YA REALIZO ADECUACIONES.  ; 3207904670", "latitud": 5.4176995, "longitud": -75.7025983, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4176995,-75.7025983"}, {"pedido": "10030493", "direccion": "CLL 2 4 23 INTERIOR 1 - 20 DE JULIO", "municipio": "Salamina", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990010750 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - ;3116276646/3116276646 ; Proceso creado automáticamente por el sistema desde el proceso 4150.", "latitud": 5.409952, "longitud": -75.4883701, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.409952,-75.4883701"}, {"pedido": "10030719", "direccion": "CLL 29B 4 56 APT 201 - BARRIO SIN DEFINI", "municipio": "Supia", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990020985 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - Otros: ;3147502926 ;  3147502926 ya repararon inconsistencias ; 3147502926", "latitud": 5.4524015, "longitud": -75.6520288, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4524015,-75.6520288"}, {"pedido": "10030721", "direccion": "CLL 13 6 48 PIS 1 - BARRIO SIN DEFINIR", "municipio": "Salamina", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990010789 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - ;3133989164/3133989164 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3219324614", "latitud": 5.3773615, "longitud": -75.3718186, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.3773615,-75.3718186"}, {"pedido": "10030994", "direccion": "CLL 29 4 14 PISO 3 - BARRIO SIN DEFINIR", "municipio": "Anserma", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 60990010809 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros: ;3113463158/3113463158 ; Proceso creado automáticamente por el sistema desde el proceso 4150.", "latitud": 5.2403453, "longitud": -75.7781642, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.2403453,-75.7781642"}, {"pedido": "10031003", "direccion": "CRA 8 3 40 PISO 1 BARRIO PALERMO - BARRI", "municipio": "Filadelfia", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990020973 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - Otros:;3505820629/3213053833 ; Usuario indica que ya hizo las correcciones pertinentes para la conexion del servicio. ; 3505820629", "latitud": 5.2975354, "longitud": -75.5610748, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.2975354,-75.5610748"}, {"pedido": "10030915", "direccion": "CRA 10 1 31 PIS 2 - BARRIO SIN DEFINIR", "municipio": "San Jose", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 30001670359 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros:;3217681129/3217681129 ; Proceso creado automáticamente por el sistema desde el proceso 4150.", "latitud": 5.3818815, "longitud": -75.1638676, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.3818815,-75.1638676"}, {"pedido": "10030918", "direccion": "CRA 4 10 45 APT 1 - BUENOS AIRES", "municipio": "La Virginia", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 60990010649 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:682 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - Otros:;3218573923/3108357180 ; tel 3218573923 ya realizaron todas las adecuaciones. solicita visitar de nuevo ; 3108357180", "latitud": 5.4338138, "longitud": -75.3773147, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4338138,-75.3773147"}, {"pedido": "10030920", "direccion": "CRA 2 13 92 PIS 2 - EL PROGRESO", "municipio": "La Virginia", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 60990010733 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:684 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros:;3206098947/3206098947 ; Proceso creado automáticamente por el sistema desde el proceso 4150.", "latitud": 5.4338138, "longitud": -75.3773147, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4338138,-75.3773147"}, {"pedido": "10030924", "direccion": "CLL 16 4 B 46 PIS 2 - PORTOBELO", "municipio": "La Virginia", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 60560800043 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:684 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros:;3216743344/3216743344 ; Proceso creado automáticamente por el sistema desde el proceso 4150.", "latitud": 5.4338138, "longitud": -75.3773147, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4338138,-75.3773147"}, {"pedido": "10030979", "direccion": "CRA 16 4 59 APT - LA LAGUNA", "municipio": "Marsella", "region": "REGION 2", "zona": "URBANO", "propietario": "JAIME FERNANDEZ DUQUE", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 30082350277 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:384 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Visita posterior - Otros:;3117398495/3117398495 ; solicita nueva visita informa que ya adecuo la instalacion interna tal y como se lo recomendaron en la anterior visita  ; 3117398495", "latitud": 5.4525315, "longitud": -75.7669431, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4525315,-75.7669431"}, {"pedido": "10030984", "direccion": "CRA 2 6 18 - BARRIO SIN DEFINIR", "municipio": "Anserma", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 60990010975 - Mot.Rv:Solicitud de conexión /Conexión individual urbano - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Urbano - Activ:Sin definir - Clasf:Nivel 1 - Otros: ;3122545032/3122545032 ; Proceso creado automáticamente por el sistema desde el proceso 4150. ; 3137766095", "latitud": 5.2264005, "longitud": -75.7873113, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.2264005,-75.7873113"}, {"pedido": "10030987", "direccion": "VDA PUEBLO VIEJO - ZONA RURAL", "municipio": "Riosucio", "region": "REGION 2", "zona": "RURAL", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990010577 - Mot.Rv:Solicitud de conexión /Conexión individual rural - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Residencial - Ubic:Rural - Activ:Sin definir - Clasf:Nivel 1 - ;3178678445/3178678445 ; Proceso creado automáticamente por el sistema desde el proceso 4150.", "latitud": 5.4282392, "longitud": -75.7222276, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4282392,-75.7222276"}, {"pedido": "10030991", "direccion": "CRR 5 20 56 LOC 1 - BARRIO SIN DEFINIR", "municipio": "Riosucio", "region": "REGION 2", "zona": "URBANO", "propietario": "", "estado": "PENDIENTE CONFIGURACIÓN", "dias_restantes": "PENDIENTE", "observacion": "RL: 40990020990 - Mot.Rv:Solicitud de conexión /Visita posterior - Estado: En Conexión y Vinculación/Orden Conexión - Tarifa:GENERICA - Ciclo:0 - Cl.Serv:Comercial - Ubic:Urbano - Activ:SIN REGISTRAR - Clasf:Visita posterior - ;3132350786/3132350786 ; se solicita nueva visita técnica para conexión de servicio nuevo,  ; 3146881427", "latitud": 5.4209549, "longitud": -75.7030623, "color": "#5D6D7E", "url_google_maps": "https://www.google.com/maps/search/?api=1&query=5.4209549,-75.7030623"}];
 
         const centroInicial = [
             5.0689,
             -75.5174
         ];
 
-        const zoomInicial = 13;
+        const zoomInicial = 12;
 
-        const map = L.map("map").setView(
+        const map = L.map(
+            "map"
+        ).setView(
             centroInicial,
             zoomInicial
         );
@@ -404,8 +448,11 @@
 
         let marcadores = [];
         let marcadorSeleccionado = null;
+
         let estadoActivo = "";
-        let actividadActiva = "";
+        let regionActiva = "";
+        let zonaActiva = "";
+        let municipioActivo = "";
 
         function crearIcono(color) {
 
@@ -427,7 +474,8 @@
                             margin:6px;
                             border-radius:50%;
                             background:#ffffff;
-                        "></div>
+                        ">
+                        </div>
                     </div>
                 `,
                 iconSize: [30, 30],
@@ -462,34 +510,39 @@
                         ${escaparHtml(registro.estado)}
                     </span>
 
-                    <div>
+                    <div class="dato-popup">
                         <b>Dirección:</b>
                         ${escaparHtml(registro.direccion)}
                     </div>
 
-                    <div>
+                    <div class="dato-popup">
                         <b>Municipio:</b>
                         ${escaparHtml(registro.municipio)}
                     </div>
 
-                    <div>
-                        <b>Actividad:</b>
-                        ${escaparHtml(registro.actividad)}
+                    <div class="dato-popup">
+                        <b>Región:</b>
+                        ${escaparHtml(registro.region)}
                     </div>
 
-                    <div>
-                        <b>Cliente:</b>
-                        ${escaparHtml(registro.cliente)}
+                    <div class="dato-popup">
+                        <b>Zona:</b>
+                        ${escaparHtml(registro.zona)}
                     </div>
 
-                    <div>
-                        <b>Teléfono:</b>
-                        ${escaparHtml(registro.telefono)}
+                    <div class="dato-popup">
+                        <b>Propietario:</b>
+                        ${escaparHtml(registro.propietario)}
                     </div>
 
-                    <div>
+                    <div class="dato-popup">
                         <b>Días restantes:</b>
                         ${escaparHtml(registro.dias_restantes)}
+                    </div>
+
+                    <div class="observacion-popup">
+                        <b>Observación:</b><br>
+                        ${escaparHtml(registro.observacion)}
                     </div>
 
                     <a
@@ -504,9 +557,32 @@
             `;
         }
 
+        function agregarOpcion(
+            selectorId,
+            valor
+        ) {
+
+            const selector = document.getElementById(
+                selectorId
+            );
+
+            const opcion = document.createElement(
+                "option"
+            );
+
+            opcion.value = valor;
+            opcion.textContent = valor;
+
+            selector.appendChild(
+                opcion
+            );
+        }
+
         function crearMarcadores() {
 
-            const actividades = new Set();
+            const regiones = new Set();
+            const zonas = new Set();
+            const municipios = new Set();
 
             registros.forEach(registro => {
 
@@ -516,7 +592,9 @@
                         registro.longitud
                     ],
                     {
-                        icon: crearIcono(registro.color)
+                        icon: crearIcono(
+                            registro.color
+                        )
                     }
                 );
 
@@ -526,35 +604,63 @@
                     construirPopup(registro)
                 );
 
-                marcador.on("click", () => {
-                    marcadorSeleccionado = marcador;
-                });
+                marcador.on(
+                    "click",
+                    () => {
+                        marcadorSeleccionado = marcador;
+                    }
+                );
 
                 marcador.addTo(map);
 
-                marcadores.push(marcador);
-
-                actividades.add(
-                    registro.actividad
+                marcadores.push(
+                    marcador
                 );
+
+                if (registro.region) {
+                    regiones.add(
+                        registro.region
+                    );
+                }
+
+                if (registro.zona) {
+                    zonas.add(
+                        registro.zona
+                    );
+                }
+
+                if (registro.municipio) {
+                    municipios.add(
+                        registro.municipio
+                    );
+                }
             });
 
-            const selector = document.getElementById(
-                "actividadFiltro"
-            );
-
-            Array.from(actividades)
+            Array.from(regiones)
                 .sort()
-                .forEach(actividad => {
-
-                    const opcion = document.createElement(
-                        "option"
+                .forEach(valor => {
+                    agregarOpcion(
+                        "regionFiltro",
+                        valor
                     );
+                });
 
-                    opcion.value = actividad;
-                    opcion.textContent = actividad;
+            Array.from(zonas)
+                .sort()
+                .forEach(valor => {
+                    agregarOpcion(
+                        "zonaFiltro",
+                        valor
+                    );
+                });
 
-                    selector.appendChild(opcion);
+            Array.from(municipios)
+                .sort()
+                .forEach(valor => {
+                    agregarOpcion(
+                        "municipioFiltro",
+                        valor
+                    );
                 });
 
             actualizarContador();
@@ -568,11 +674,24 @@
                 !estadoActivo
                 || registro.estado === estadoActivo;
 
-            const cumpleActividad =
-                !actividadActiva
-                || registro.actividad === actividadActiva;
+            const cumpleRegion =
+                !regionActiva
+                || registro.region === regionActiva;
 
-            return cumpleEstado && cumpleActividad;
+            const cumpleZona =
+                !zonaActiva
+                || registro.zona === zonaActiva;
+
+            const cumpleMunicipio =
+                !municipioActivo
+                || registro.municipio === municipioActivo;
+
+            return (
+                cumpleEstado
+                && cumpleRegion
+                && cumpleZona
+                && cumpleMunicipio
+            );
         }
 
         function aplicarFiltros() {
@@ -602,10 +721,28 @@
             aplicarFiltros();
         }
 
-        function filtrarActividad() {
+        function filtrarRegion() {
 
-            actividadActiva = document
-                .getElementById("actividadFiltro")
+            regionActiva = document
+                .getElementById("regionFiltro")
+                .value;
+
+            aplicarFiltros();
+        }
+
+        function filtrarZona() {
+
+            zonaActiva = document
+                .getElementById("zonaFiltro")
+                .value;
+
+            aplicarFiltros();
+        }
+
+        function filtrarMunicipio() {
+
+            municipioActivo = document
+                .getElementById("municipioFiltro")
                 .value;
 
             aplicarFiltros();
@@ -614,10 +751,20 @@
         function mostrarTodos() {
 
             estadoActivo = "";
-            actividadActiva = "";
+            regionActiva = "";
+            zonaActiva = "";
+            municipioActivo = "";
 
             document.getElementById(
-                "actividadFiltro"
+                "regionFiltro"
+            ).value = "";
+
+            document.getElementById(
+                "zonaFiltro"
+            ).value = "";
+
+            document.getElementById(
+                "municipioFiltro"
             ).value = "";
 
             marcadores.forEach(marcador => {
@@ -640,8 +787,9 @@
                 .toUpperCase();
 
             if (!valor) {
+
                 mostrarToast(
-                    "Ingrese un número de pedido."
+                    "Ingrese un ID_ORDEN."
                 );
 
                 return;
@@ -654,8 +802,9 @@
             );
 
             if (!encontrado) {
+
                 mostrarToast(
-                    "Pedido no encontrado."
+                    "El pedido no está disponible en el mapa."
                 );
 
                 return;
@@ -663,11 +812,13 @@
 
             marcadores.forEach(marcador => {
 
-                if (marcador !== encontrado) {
-
-                    if (map.hasLayer(marcador)) {
-                        map.removeLayer(marcador);
-                    }
+                if (
+                    marcador !== encontrado
+                    && map.hasLayer(marcador)
+                ) {
+                    map.removeLayer(
+                        marcador
+                    );
                 }
             });
 
@@ -714,6 +865,16 @@
                 return;
             }
 
+            if (visibles.length === 1) {
+
+                map.setView(
+                    visibles[0].getLatLng(),
+                    16
+                );
+
+                return;
+            }
+
             const grupo = L.featureGroup(
                 visibles
             );
@@ -746,28 +907,33 @@
                 return;
             }
 
-            const registro =
-                marcadorSeleccionado.registro;
+            const registro = (
+                marcadorSeleccionado.registro
+            );
 
             const texto = [
                 `Pedido: ${registro.pedido}`,
                 `Estado: ${registro.estado}`,
                 `Dirección: ${registro.direccion}`,
                 `Municipio: ${registro.municipio}`,
-                `Actividad: ${registro.actividad}`,
-                `Cliente: ${registro.cliente}`,
-                `Teléfono: ${registro.telefono}`,
+                `Región: ${registro.region}`,
+                `Zona: ${registro.zona}`,
+                `Propietario: ${registro.propietario}`,
+                `Días restantes: ${registro.dias_restantes}`,
+                `Observación: ${registro.observacion}`,
                 `Ubicación: ${registro.url_google_maps}`
             ].join("\n");
 
             navigator.clipboard
                 .writeText(texto)
                 .then(() => {
+
                     mostrarToast(
                         "Información copiada correctamente."
                     );
                 })
                 .catch(() => {
+
                     mostrarToast(
                         "No fue posible copiar la información."
                     );
@@ -783,9 +949,12 @@
             toast.textContent = mensaje;
             toast.style.display = "block";
 
-            setTimeout(() => {
-                toast.style.display = "none";
-            }, 2500);
+            setTimeout(
+                () => {
+                    toast.style.display = "none";
+                },
+                2500
+            );
         }
 
         crearMarcadores();
@@ -798,4 +967,5 @@
     </script>
 
 </body>
+
 </html>

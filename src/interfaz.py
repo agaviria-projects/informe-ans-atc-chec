@@ -35,8 +35,9 @@ from src.config import (
 from src.generador_excel import ErrorGeneracionExcel
 from src.generador_mapa import (
     ErrorGeneracionMapa,
-    generar_mapa_demo,
+    generar_mapa_desde_informe,
 )
+
 from src.lector_excel import ErrorLecturaExcel
 from src.procesador_informe import procesar_informe_ans
 from src.transformador import ErrorTransformacion
@@ -1019,7 +1020,7 @@ class AplicacionANS:
 
     def generar_mapa_ans(self) -> None:
         """
-        Genera y abre el mapa demostrativo.
+        Genera y abre el mapa ANS con pedidos reales.
         """
 
         if self.proceso_activo:
@@ -1031,14 +1032,14 @@ class AplicacionANS:
             )
 
             self.preparar_proceso(
-                estado="Generando mapa demostrativo...",
+                estado="Generando mapa con pedidos reales...",
                 etiqueta="Construyendo mapa ANS...",
                 mensaje_log=(
-                    "Iniciando generación del mapa ANS demostrativo."
+                    "Iniciando generación del mapa ANS con pedidos reales."
                 ),
             )
 
-            ruta_mapa = generar_mapa_demo(
+            ruta_mapa, resumen_mapa = generar_mapa_desde_informe(
                 abrir_navegador=True
             )
 
@@ -1048,9 +1049,51 @@ class AplicacionANS:
             )
 
             self.agregar_mensaje(
-                "Se utilizaron cinco ubicaciones provisionales "
-                "para la demostración.",
+                f"Direcciones consultadas: "
+                f"{resumen_mapa['CONSULTAS_REALIZADAS']}",
+                "info",
+            )
+
+            self.agregar_mensaje(
+                f"Ubicaciones encontradas: "
+                f"{resumen_mapa['COORDENADAS_ENCONTRADAS']}",
+                "correcto",
+            )
+
+            self.agregar_mensaje(
+                f"Coordenadas reutilizadas desde caché: "
+                f"{resumen_mapa['COORDENADAS_REUTILIZADAS']}",
+                "info",
+            )
+
+            self.agregar_mensaje(
+                f"Pedidos visibles en el mapa: "
+                f"{resumen_mapa['REGISTROS_EN_EL_MAPA']}",
+                "correcto",
+            )
+
+            self.agregar_mensaje(
+                f"Direcciones pendientes: "
+                f"{resumen_mapa['PENDIENTES_POR_LIMITE']}",
                 "advertencia",
+            )
+
+            self.agregar_mensaje(
+                f"Direcciones no encontradas: "
+                f"{resumen_mapa['DIRECCIONES_NO_ENCONTRADAS']}",
+                "advertencia",
+            )
+
+            self.agregar_mensaje(
+                f"Direcciones rechazadas por municipio: "
+                f"{resumen_mapa['RECHAZADAS_POR_MUNICIPIO']}",
+                "advertencia",
+            )
+
+            self.agregar_mensaje(
+                f"Intentos de geocodificación realizados: "
+                f"{resumen_mapa['INTENTOS_GEOCODIFICACION']}",
+                "info",
             )
 
         except ErrorGeneracionMapa as error:
