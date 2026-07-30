@@ -1053,12 +1053,6 @@ class AplicacionANS:
                 "advertencia",
             )
 
-            messagebox.showinfo(
-                "Mapa ANS",
-                "El mapa demostrativo fue generado correctamente.\n\n"
-                "Se abrió en el navegador predeterminado.",
-            )
-
         except ErrorGeneracionMapa as error:
             logger.warning(
                 "No fue posible generar el mapa: %s",

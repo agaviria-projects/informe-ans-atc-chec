@@ -23,7 +23,7 @@ SALIDA_DIR = BASE_DIR / "salida"
 LOGS_DIR = BASE_DIR / "logs"
 ASSETS_DIR = BASE_DIR / "assets"
 CONFIG_DIR = BASE_DIR / "config"
-
+MAPAS_DIR = BASE_DIR / "mapas"
 
 # ==========================================================
 # RECURSOS VISUALES
@@ -52,9 +52,7 @@ RUTA_INFORME_EXCEL = (
     SALIDA_DIR / NOMBRE_INFORME_EXCEL
 )
 
-RUTA_MAPA_HTML = (
-    SALIDA_DIR / NOMBRE_MAPA_HTML
-)
+RUTA_MAPA_HTML = MAPAS_DIR / NOMBRE_MAPA_HTML
 
 RUTA_LOG = (
     LOGS_DIR / "Informe_ANS_ELITE.log"
@@ -179,6 +177,7 @@ def crear_directorios() -> None:
         LOGS_DIR,
         ASSETS_DIR,
         CONFIG_DIR,
+        MAPAS_DIR,
     )
 
     for directorio in directorios:
