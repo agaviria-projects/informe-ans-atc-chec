@@ -33,10 +33,17 @@ COLOR_VERDE_CLARO = "E9F7EF"
 COLOR_BLANCO = "FFFFFF"
 COLOR_BORDE = "AAB7B8"
 
-COLOR_VENCIDO = "F4CCCC"
-COLOR_ALERTA = "FFF2CC"
-COLOR_A_TIEMPO = "D9EAD3"
-COLOR_PENDIENTE = "D9EAF7"
+# ==========================================================
+# COLORES DE ESTADOS ANS
+# ==========================================================
+
+COLOR_VENCIDO = "FF1F1F"       # Rojo encendido
+COLOR_ALERTA = "FFD426"        # Amarillo intenso
+COLOR_A_TIEMPO = "8BCF4A"      # Verde claro intenso
+COLOR_PENDIENTE = "647687"     # Gris azulado
+
+COLOR_TEXTO_ESTADO = "000000"
+COLOR_TEXTO_PENDIENTE = "FFFFFF"
 
 
 ANCHOS_COLUMNAS = {
@@ -101,7 +108,7 @@ def crear_dataframe_control(
 
 def aplicar_diseno_hoja_datos(
     ruta_archivo: Path,
-) -> None:
+    ) -> None:
     """
     Convierte DATOS_ANS en una tabla profesional.
     """
@@ -116,7 +123,6 @@ def aplicar_diseno_hoja_datos(
 
     hoja.freeze_panes = "A2"
     hoja.sheet_view.showGridLines = False
-    
 
     borde_fino = Side(
         style="thin",
@@ -152,64 +158,24 @@ def aplicar_diseno_hoja_datos(
     ultima_fila = hoja.max_row
     ultima_columna = hoja.max_column
 
+    if ultima_fila >= 2:
 
-    # ==========================================================
-    # VALIDAR ENCABEZADOS PARA LA TABLA ESTRUCTURADA
-    # ==========================================================
+        # ------------------------------------------------------
+        # Si la tabla ya existe, eliminarla antes de crearla.
+        # ------------------------------------------------------
 
-    encabezados_utilizados: set[str] = set()
+        if "TablaDatosANS" in hoja.tables:
+            del hoja.tables["TablaDatosANS"]
 
-    for numero_columna in range(
-        1,
-        ultima_columna + 1,
-    ):
-        celda_encabezado = hoja.cell(
-            row=1,
-            column=numero_columna,
-        )
-
-        encabezado = str(
-            celda_encabezado.value or ""
-        ).strip()
-
-        if not encabezado:
-            encabezado = f"COLUMNA_{numero_columna}"
-
-        encabezado_base = encabezado
-        consecutivo = 2
-
-        while encabezado in encabezados_utilizados:
-            encabezado = (
-                f"{encabezado_base}_{consecutivo}"
-            )
-
-            consecutivo += 1
-
-        celda_encabezado.value = encabezado
-
-        encabezados_utilizados.add(
-            encabezado
-        )
-
-
-    # ==========================================================
-    # CREAR TABLA ESTRUCTURADA
-    # ==========================================================
-
-    if ultima_fila >= 2 and ultima_columna >= 1:
-
-        ultima_letra = hoja.cell(
-            row=1,
-            column=ultima_columna,
-        ).column_letter
-
-        referencia_tabla = (
-            f"A1:{ultima_letra}{ultima_fila}"
+        referencia = (
+            f"A1:"
+            f"{hoja.cell(1, ultima_columna).column_letter}"
+            f"{ultima_fila}"
         )
 
         tabla = Table(
             displayName="TablaDatosANS",
-            ref=referencia_tabla,
+            ref=referencia,
         )
 
         estilo_tabla = TableStyleInfo(
@@ -229,10 +195,93 @@ def aplicar_diseno_hoja_datos(
     for columna, ancho in ANCHOS_COLUMNAS.items():
         hoja.column_dimensions[columna].width = ancho
 
+    # ======================================================
+    # FORMATO DE LAS FILAS DEL INFORME
+    # ======================================================
+
     for fila in range(
         2,
         ultima_fila + 1,
     ):
+
+        # ----------------------------------------------
+        # FORMATOS NUMÉRICOS Y DE FECHA
+        # ----------------------------------------------
+
+        hoja.cell(
+            row=fila,
+            column=1,
+        ).number_format = "@"
+
+        hoja.cell(
+            row=fila,
+            column=2,
+        ).number_format = "dd/mm/yyyy"
+
+        hoja.cell(
+            row=fila,
+            column=6,
+        ).number_format = "@"
+
+        hoja.cell(
+            row=fila,
+            column=10,
+        ).number_format = "dd/mm/yyyy"
+
+        # ----------------------------------------------
+        # ALINEACIÓN GENERAL
+        # ----------------------------------------------
+
+        for columna in range(
+            1,
+            ultima_columna + 1,
+        ):
+
+            celda = hoja.cell(
+                row=fila,
+                column=columna,
+            )
+
+            # Columnas de texto descriptivo.
+            if columna in {
+                3,   # DIRECCION
+                4,   # PROPIETARIO
+                14,  # OBSERVACION
+            }:
+                celda.alignment = Alignment(
+                    horizontal="left",
+                    vertical="center",
+                    wrap_text=False,
+                )
+
+            # Columnas numéricas, fechas y estados.
+            elif columna in {
+                2,   # FECHA_ORDEN
+                5,   # ZONA
+                6,   # MUNICIPIO
+                8,   # REGION_ORIGEN
+                9,   # DIAS_PACTADOS
+                10,  # FECHA_LIMITE_ANS
+                11,  # DIAS_TRANSCURRIDOS
+                12,  # DIAS_RESTANTES
+                13,  # ESTADO
+            }:
+                celda.alignment = Alignment(
+                    horizontal="center",
+                    vertical="center",
+                    wrap_text=False,
+                )
+
+            else:
+                celda.alignment = Alignment(
+                    horizontal="left",
+                    vertical="center",
+                    wrap_text=False,
+                )
+
+        # Mantiene todas las filas compactas y uniformes.
+        hoja.row_dimensions[fila].height = 22
+
         hoja.cell(
             fila,
             1,
@@ -257,84 +306,104 @@ def aplicar_diseno_hoja_datos(
             1,
             ultima_columna + 1,
         ):
-            celda = hoja.cell(
+            hoja.cell(
                 fila,
                 columna,
+            ).alignment = Alignment(
+                vertical="top",
+                wrap_text=columna in {
+                    3,
+                    4,
+                    14,
+                },
             )
 
-            if columna == 14:
-                # OBSERVACION:
-                # columna amplia y texto en una sola línea.
-                celda.alignment = Alignment(
-                    horizontal="left",
-                    vertical="center",
-                    wrap_text=False,
-                )
+        hoja.cell(
+            fila,
+            13,
+        ).alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+        )
 
-            else:
-                celda.alignment = Alignment(
-                    vertical="center",
-                    wrap_text=columna in {
-                        3,
-                        4,
-                    },
-                )
+    # ======================================================
+    # COLORES DIRECTOS PARA LOS ESTADOS ANS
+    # ======================================================
 
-        # Mantiene una altura uniforme y compacta.
-        hoja.row_dimensions[fila].height = 20
+    for fila in range(
+        2,
+        ultima_fila + 1,
+    ):
 
-    rango_estado = (
-        f"M2:M{ultima_fila}"
-    )
+        celda_estado = hoja.cell(
+            row=fila,
+            column=13,
+        )
 
-    hoja.conditional_formatting.add(
-        rango_estado,
-        FormulaRule(
-            formula=['$M2="VENCIDO"'],
-            fill=PatternFill(
+        estado = str(
+            celda_estado.value or ""
+        ).strip().upper()
+
+        if estado == "VENCIDO":
+
+            celda_estado.fill = PatternFill(
                 fill_type="solid",
                 fgColor=COLOR_VENCIDO,
-            ),
-        ),
-    )
+            )
 
-    hoja.conditional_formatting.add(
-        rango_estado,
-        FormulaRule(
-            formula=['$M2="ALERTA"'],
-            fill=PatternFill(
+            celda_estado.font = Font(
+                color=COLOR_TEXTO_ESTADO,
+                bold=True,
+            )
+
+        elif estado == "ALERTA":
+
+            celda_estado.fill = PatternFill(
                 fill_type="solid",
                 fgColor=COLOR_ALERTA,
-            ),
-        ),
-    )
+            )
 
-    hoja.conditional_formatting.add(
-        rango_estado,
-        FormulaRule(
-            formula=['$M2="A TIEMPO"'],
-            fill=PatternFill(
+            celda_estado.font = Font(
+                color=COLOR_TEXTO_ESTADO,
+                bold=True,
+            )
+
+        elif estado == "A TIEMPO":
+
+            celda_estado.fill = PatternFill(
                 fill_type="solid",
                 fgColor=COLOR_A_TIEMPO,
-            ),
-        ),
-    )
+            )
 
-    hoja.conditional_formatting.add(
-        rango_estado,
-        FormulaRule(
-            formula=['$M2="PENDIENTE CONFIGURACIÓN"'],
-            fill=PatternFill(
+            celda_estado.font = Font(
+                color=COLOR_TEXTO_ESTADO,
+                bold=True,
+            )
+
+        elif estado in {
+            "SIN FECHA",
+            "PENDIENTE CONFIGURACIÓN",
+        }:
+
+            celda_estado.fill = PatternFill(
                 fill_type="solid",
                 fgColor=COLOR_PENDIENTE,
-            ),
-        ),
-    )
+            )
 
+            celda_estado.font = Font(
+                color=COLOR_TEXTO_PENDIENTE,
+                bold=True,
+            )
+
+        celda_estado.alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+            wrap_text=False,
+        )
+        
     libro.save(
         ruta_archivo
     )
-
 
 def aplicar_diseno_hoja_control(
     ruta_archivo: Path,
