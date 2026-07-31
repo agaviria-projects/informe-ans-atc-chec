@@ -67,16 +67,24 @@ RUTA_LOG = (
 
 
 # ==========================================================
-# HOJAS DEL INFORME
+# HOJAS DEL INFORME GENERADO
 # ==========================================================
 
 HOJA_DATOS_SALIDA = "DATOS_ANS"
 HOJA_CONTROL = "RESUMEN"
-HOJA_DIAS_CONTRACTUALES = "DIAS_CONTRACTUALES"
 
-# Se agregarán posteriormente.
-HOJA_RESUMEN = "RESUMEN"
+HOJA_RESUMEN = "RESUMEN_ANS"
 HOJA_DASHBOARD = "DASHBOARD_ANS"
+
+
+# ==========================================================
+# HOJAS DE DIAS_CONTRACTUALES.xlsx
+# ==========================================================
+
+HOJA_REGLAS_NEGOCIO = "REGLAS_DE_NEGOCIO"
+HOJA_PARAMETROS_ANS = "PARAMETROS"
+HOJA_FESTIVOS_ADICIONALES = "FESTIVOS_ADICIONALES"
+HOJA_CONTROL_EJECUCION = "EJECUCION"
 
 
 # ==========================================================
@@ -116,9 +124,6 @@ CANTIDAD_ARCHIVOS_REGIONALES = 2
 
 NOMBRE_REGION_1 = "REGION 1"
 NOMBRE_REGION_2 = "REGION 2"
-
-# Valor provisional hasta confirmar la regla contractual.
-UMBRAL_ALERTA_DIAS = 2
 
 
 # ==========================================================

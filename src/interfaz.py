@@ -995,9 +995,27 @@ class AplicacionANS:
         )
 
         self.agregar_mensaje(
-            "Las columnas ANS permanecen pendientes hasta "
-            "incorporar la tabla de días contractuales.",
+            f"Pedidos vencidos: "
+            f"{resumen['PEDIDOS_VENCIDOS']:,}",
             "advertencia",
+        )
+
+        self.agregar_mensaje(
+            f"Pedidos en alerta: "
+            f"{resumen['PEDIDOS_ALERTA']:,}",
+            "advertencia",
+        )
+
+        self.agregar_mensaje(
+            f"Pedidos a tiempo: "
+            f"{resumen['PEDIDOS_A_TIEMPO']:,}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"Fecha de corte ANS: "
+            f"{resumen['FECHA_CORTE_ANS']}",
+            "info",
         )
 
         messagebox.showinfo(
