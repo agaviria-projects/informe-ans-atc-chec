@@ -352,7 +352,7 @@ class AplicacionANS:
 
         self.btn_informe = self.crear_boton(
             contenedor=contenedor,
-            texto="GENERAR\nINFORME ANS\nCONEXIONES",
+            texto="GENERAR\nANS CONEXIONES",
             comando=self.iniciar_generacion_informe,
             color=COLOR_VERDE_EMPRESA_CLARO,
             color_hover="#A4D65E",
@@ -441,7 +441,7 @@ class AplicacionANS:
             activeforeground=color_texto,
             disabledforeground="#D5D8DC",
             font=("Segoe UI", 10, "bold"),
-            height=2,
+            height=3,
             relief="ridge",
             borderwidth=3,
             cursor="hand2",
