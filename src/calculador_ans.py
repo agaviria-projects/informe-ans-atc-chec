@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # ==========================================================
 
 PARAMETROS_OBLIGATORIOS = {
-    "UMBRAL_ALERTA_DIAS",
+    "DIAS_INICIO_ALERTA",
     "EXCLUIR_SABADOS",
     "EXCLUIR_DOMINGOS",
     "EXCLUIR_FESTIVOS_COLOMBIA",
@@ -422,12 +422,12 @@ def cargar_parametros() -> dict[str, object]:
         )
 
     return {
-        "UMBRAL_ALERTA_DIAS": (
+        "DIAS_INICIO_ALERTA": (
             convertir_entero_positivo(
                 parametros[
-                    "UMBRAL_ALERTA_DIAS"
+                    "DIAS_INICIO_ALERTA"
                 ],
-                "UMBRAL_ALERTA_DIAS",
+                "DIAS_INICIO_ALERTA",
                 permitir_cero=True,
             )
         ),
@@ -852,8 +852,9 @@ def aplicar_calculos_ans(
         )
 
 
-    umbral_alerta = parametros[
-        "UMBRAL_ALERTA_DIAS"
+    dias_inicio_alerta = parametros[
+        "DIAS_INICIO_ALERTA"
+
     ]
 
     excluir_sabados = parametros[
@@ -959,7 +960,7 @@ def aplicar_calculos_ans(
 
         estado = determinar_estado(
             dias_restantes=dias_restantes,
-            umbral_alerta=umbral_alerta,
+            umbral_alerta=dias_inicio_alerta,
         )
 
         fechas_limite_resultado.append(
@@ -1009,7 +1010,7 @@ def aplicar_calculos_ans(
         "REGLAS_MUNICIPIOS_CARGADAS": len(
             reglas_municipios
         ),
-        "UMBRAL_ALERTA_DIAS": umbral_alerta,
+        "DIAS_INICIO_ALERTA": dias_inicio_alerta,
         "FESTIVOS_CONSIDERADOS": len(
             festivos
         ),

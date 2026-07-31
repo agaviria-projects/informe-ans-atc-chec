@@ -338,6 +338,19 @@ def leer_archivo_region(
         region_origen
     )
 
+    # ==========================================================
+    # NORMALIZAR NOMBRES ESPECÍFICOS DE MUNICIPIOS
+    # ==========================================================
+
+    if "DESC_MUNICIPIO" in dataframe.columns:
+
+        dataframe["DESC_MUNICIPIO"] = (
+            dataframe["DESC_MUNICIPIO"]
+            .replace({
+                "SANTA ROSA DE CABAL": "Santa Rosa de Cabal",
+            })
+        )
+        
     control = {
         "ARCHIVO": ruta_archivo.name,
         "REGION": region_origen,
