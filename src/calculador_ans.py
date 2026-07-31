@@ -555,11 +555,20 @@ def construir_festivos_colombia(
         fecha_maxima.year + 1,
     )
 
+    # La librería holidays genera el calendario de festivos
+    # oficiales de Colombia para los años requeridos.
+    #
+    # "CO" corresponde al código del país Colombia.
     calendario = holidays.country_holidays(
         "CO",
         years=anos,
     )
 
+    # Se devuelven únicamente las fechas de los festivos
+    # en un conjunto set[date], para facilitar la validación:
+    #
+    # if fecha in festivos:
+    #     return False
     return set(
         calendario.keys()
     )
@@ -772,6 +781,21 @@ def aplicar_calculos_ans(
 
     reglas_municipios = cargar_reglas_municipios()
     parametros = cargar_parametros()
+
+    # ==========================================================
+    # CARGAR FESTIVOS ADICIONALES
+    # ==========================================================
+
+    # Si EXCLUIR_FESTIVOS_ADICIONALES = SI:
+    # se lee la hoja FESTIVOS_ADICIONALES.
+    #
+    # Dentro de esa hoja:
+    # - ACTIVO = SI  -> la fecha se excluye del cálculo ANS.
+    # - ACTIVO = NO  -> la fecha se ignora.
+    #
+    # Si EXCLUIR_FESTIVOS_ADICIONALES = NO:
+    # no se utiliza ninguna fecha de esa hoja y se crea
+    # un conjunto vacío.
 
     festivos_adicionales = (
         cargar_festivos_adicionales()
