@@ -352,7 +352,7 @@ class AplicacionANS:
 
         self.btn_informe = self.crear_boton(
             contenedor=contenedor,
-            texto="GENERAR\nINFORME ANS",
+            texto="GENERAR\nINFORME ANS\nCONEXIONES",
             comando=self.iniciar_generacion_informe,
             color=COLOR_VERDE_EMPRESA_CLARO,
             color_hover="#A4D65E",
