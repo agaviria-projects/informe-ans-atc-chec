@@ -5,11 +5,17 @@ import sys
 import threading
 import tkinter as tk
 
+
 from datetime import datetime
 from tkinter import messagebox, scrolledtext, ttk
 from typing import Callable
 
 from PIL import Image, ImageTk
+
+from src.actualizador_dashboard import (
+    ErrorActualizacionDashboard,
+    actualizar_dashboard,
+)
 
 from src.config import (
     ALTO_VENTANA,
@@ -341,14 +347,18 @@ class AplicacionANS:
         contenedor.pack(
             fill="x",
             padx=34,
-            pady=(5, 12),
+            pady=(5, 10),
         )
 
         contenedor.columnconfigure(
-            (0, 1),
+            (0, 1, 2, 3),
             weight=1,
             uniform="botones",
         )
+
+        # ======================================================
+        # FILA 1
+        # ======================================================
 
         self.btn_informe = self.crear_boton(
             contenedor=contenedor,
@@ -362,14 +372,15 @@ class AplicacionANS:
         self.btn_informe.grid(
             row=0,
             column=0,
-            padx=8,
-            pady=7,
+            columnspan=2,
+            padx=(8, 6),
+            pady=4,
             sticky="ew",
         )
 
         self.btn_mapa = self.crear_boton(
             contenedor=contenedor,
-            texto="GENERAR\nMAPA ANS",
+            texto="GENERAR\nMAPA CONEXIONES",
             comando=self.generar_mapa_ans,
             color=COLOR_VERDE_EMPRESA,
             color_hover=COLOR_PRINCIPAL_HOVER,
@@ -378,11 +389,62 @@ class AplicacionANS:
 
         self.btn_mapa.grid(
             row=0,
-            column=1,
-            padx=8,
-            pady=7,
+            column=2,
+            columnspan=2,
+            padx=(6, 8),
+            pady=4,
             sticky="ew",
         )
+
+        # ======================================================
+        # FILA 2
+        # ======================================================
+
+        self.btn_dashboard = self.crear_boton(
+            contenedor=contenedor,
+            texto="ACTUALIZAR\nDASHBOARD CONEXIONES",
+            comando=self.iniciar_actualizacion_dashboard,
+            color="#2874A6",
+            color_hover="#1F618D",
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_dashboard.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            padx=(8, 6),
+            pady=4,
+            sticky="ew",
+        )
+
+        self.btn_ans_redes = self.crear_boton(
+            contenedor=contenedor,
+            texto="GENERAR\nANS REDES",
+            comando=self.modulo_ans_redes_pendiente,
+            color="#7F8C8D",
+            color_hover="#626D6F",
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_ans_redes.grid(
+            row=1,
+            column=2,
+            columnspan=2,
+            padx=(6, 8),
+            pady=4,
+            sticky="ew",
+        )
+
+        # Por ahora queda deshabilitado hasta definir
+        # las reglas de negocio del módulo ANS Redes.
+        self.btn_ans_redes.configure(
+            state=tk.DISABLED
+        )
+
+        # ======================================================
+        # FILA 3
+        # ======================================================
 
         self.btn_salida = self.crear_boton(
             contenedor=contenedor,
@@ -394,10 +456,11 @@ class AplicacionANS:
         )
 
         self.btn_salida.grid(
-            row=1,
+            row=2,
             column=0,
-            padx=8,
-            pady=7,
+            columnspan=2,
+            padx=(8, 6),
+            pady=4,
             sticky="ew",
         )
 
@@ -411,10 +474,11 @@ class AplicacionANS:
         )
 
         self.btn_salir.grid(
-            row=1,
-            column=1,
-            padx=8,
-            pady=7,
+            row=2,
+            column=2,
+            columnspan=2,
+            padx=(6, 8),
+            pady=4,
             sticky="ew",
         )
 
@@ -441,7 +505,7 @@ class AplicacionANS:
             activeforeground=color_texto,
             disabledforeground="#D5D8DC",
             font=("Segoe UI", 10, "bold"),
-            height=3,
+            height=2,
             relief="ridge",
             borderwidth=3,
             cursor="hand2",
@@ -773,6 +837,16 @@ class AplicacionANS:
 
         self.btn_salida.configure(
             state=estado
+        )
+
+        self.btn_dashboard.configure(
+            state=estado
+        )
+
+        # Solo se habilitará cuando el módulo ANS Redes
+        # esté completamente desarrollado.
+        self.btn_ans_redes.configure(
+            state=tk.DISABLED
         )
 
         self.proceso_activo = bloquear
@@ -1181,6 +1255,156 @@ class AplicacionANS:
                 "No fue posible abrir la carpeta de salida.\n\n"
                 f"Detalle: {error}"
             )
+
+    # ==========================================================
+    # ACTUALIZACIÓN DEL DASHBOARD ANS
+    # ==========================================================
+
+    def iniciar_actualizacion_dashboard(self) -> None:
+        """
+        Inicia la actualización del dashboard en un hilo secundario.
+        """
+
+        if self.proceso_activo:
+            return
+
+        self.bloquear_botones(
+            True
+        )
+
+        hilo = threading.Thread(
+            target=self.actualizar_dashboard_ans,
+            daemon=True,
+        )
+
+        hilo.start()
+
+    def actualizar_dashboard_ans(self) -> None:
+        """
+        Transfiere los datos del informe al archivo INFORME_ANS.xlsb
+        y actualiza sus tablas dinámicas, gráficos y segmentadores.
+        """
+
+        try:
+            self.root.after(
+                0,
+                lambda: self.preparar_proceso(
+                    estado="Actualizando dashboard ANS...",
+                    etiqueta="Transfiriendo datos al dashboard...",
+                    mensaje_log=(
+                        "Iniciando actualización del dashboard ANS."
+                    ),
+                ),
+            )
+
+            resumen = actualizar_dashboard(
+                refrescar_dashboard=True
+            )
+
+            self.root.after(
+                0,
+                lambda: self.mostrar_dashboard_actualizado(
+                    resumen
+                ),
+            )
+
+        except ErrorActualizacionDashboard as error:
+            logger.warning(
+                "Actualización del dashboard detenida: %s",
+                error,
+            )
+
+            self.root.after(
+                0,
+                lambda mensaje=str(error): (
+                    self.mostrar_error(mensaje)
+                ),
+            )
+
+        except Exception as error:
+            logger.exception(
+                "Error inesperado al actualizar el dashboard."
+            )
+
+            self.root.after(
+                0,
+                lambda mensaje=str(error): (
+                    self.mostrar_error(
+                        "Ocurrió un error inesperado al actualizar "
+                        "el dashboard.\n\n"
+                        f"Detalle: {mensaje}"
+                    )
+                ),
+            )
+
+        finally:
+            self.root.after(
+                0,
+                self.finalizar_proceso,
+            )
+
+    def mostrar_dashboard_actualizado(
+        self,
+        resumen: dict,
+    ) -> None:
+        """
+        Presenta el resultado de la actualización del dashboard.
+        """
+
+        self.barra_progreso.stop()
+
+        self.barra_progreso.configure(
+            mode="determinate",
+            value=100,
+        )
+
+        self.agregar_mensaje(
+            "Dashboard ANS actualizado correctamente.",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"Registros transferidos: "
+            f"{resumen['REGISTROS_TRANSFERIDOS']:,}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"Columnas transferidas: "
+            f"{resumen['COLUMNAS_TRANSFERIDAS']}",
+            "info",
+        )
+
+        self.agregar_mensaje(
+            f"Archivo actualizado: "
+            f"{os.path.basename(resumen['ARCHIVO_DESTINO'])}",
+            "correcto",
+        )
+
+        messagebox.showinfo(
+            "Dashboard ANS",
+            "Dashboard actualizado correctamente.\n\n"
+            f"Registros transferidos: "
+            f"{resumen['REGISTROS_TRANSFERIDOS']:,}\n"
+            f"Archivo: "
+            f"{os.path.basename(resumen['ARCHIVO_DESTINO'])}",
+        )
+
+        self.root.after(
+            1500,
+            lambda: self.barra_progreso.configure(
+                value=0
+            ),
+        )
+    def modulo_ans_redes_pendiente(self) -> None:
+        """
+        Módulo ANS Redes pendiente de definición funcional.
+        """
+
+        messagebox.showinfo(
+            NOMBRE_APLICACION,
+            "El módulo ANS Redes está pendiente de definición.",
+        )
 
     def cerrar_aplicacion(self) -> None:
         """
