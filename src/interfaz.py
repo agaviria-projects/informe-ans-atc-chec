@@ -336,7 +336,11 @@ class AplicacionANS:
 
     def construir_botones(self) -> None:
         """
-        Construye los botones principales.
+        Construye el menú principal por módulos.
+
+        La ventana principal solo muestra los procesos generales:
+        ANS CONEXIONES y ANS REDES. Cada módulo abre su propio
+        subpanel de acciones para evitar saturar la interfaz.
         """
 
         contenedor = tk.Frame(
@@ -351,99 +355,51 @@ class AplicacionANS:
         )
 
         contenedor.columnconfigure(
-            (0, 1, 2, 3),
+            (0, 1),
             weight=1,
-            uniform="botones",
+            uniform="modulos",
         )
 
         # ======================================================
-        # FILA 1
+        # FILA 1: MÓDULOS PRINCIPALES
         # ======================================================
 
-        self.btn_informe = self.crear_boton(
+        self.btn_modulo_conexiones = self.crear_boton(
             contenedor=contenedor,
-            texto="GENERAR\nANS CONEXIONES",
-            comando=self.iniciar_generacion_informe,
+            texto="ANS\nCONEXIONES",
+            comando=self.abrir_panel_conexiones,
             color=COLOR_VERDE_EMPRESA_CLARO,
             color_hover="#A4D65E",
             color_texto=COLOR_TEXTO,
         )
 
-        self.btn_informe.grid(
+        self.btn_modulo_conexiones.grid(
             row=0,
             column=0,
-            columnspan=2,
             padx=(8, 6),
             pady=4,
             sticky="ew",
         )
 
-        self.btn_mapa = self.crear_boton(
+        self.btn_modulo_redes = self.crear_boton(
             contenedor=contenedor,
-            texto="GENERAR\nMAPA CONEXIONES",
-            comando=self.generar_mapa_ans,
-            color=COLOR_VERDE_EMPRESA,
-            color_hover=COLOR_PRINCIPAL_HOVER,
-            color_texto=COLOR_BLANCO,
-        )
-
-        self.btn_mapa.grid(
-            row=0,
-            column=2,
-            columnspan=2,
-            padx=(6, 8),
-            pady=4,
-            sticky="ew",
-        )
-
-        # ======================================================
-        # FILA 2
-        # ======================================================
-
-        self.btn_dashboard = self.crear_boton(
-            contenedor=contenedor,
-            texto="ACTUALIZAR\nDASHBOARD CONEXIONES",
-            comando=self.iniciar_actualizacion_dashboard,
-            color="#2874A6",
-            color_hover="#1F618D",
-            color_texto=COLOR_BLANCO,
-        )
-
-        self.btn_dashboard.grid(
-            row=1,
-            column=0,
-            columnspan=2,
-            padx=(8, 6),
-            pady=4,
-            sticky="ew",
-        )
-
-        self.btn_ans_redes = self.crear_boton(
-            contenedor=contenedor,
-            texto="GENERAR\nANS REDES",
-            comando=self.modulo_ans_redes_pendiente,
+            texto="ANS\nREDES",
+            comando=self.abrir_panel_redes,
             color="#7F8C8D",
             color_hover="#626D6F",
             color_texto=COLOR_BLANCO,
         )
 
-        self.btn_ans_redes.grid(
-            row=1,
-            column=2,
-            columnspan=2,
+        self.btn_modulo_redes.grid(
+            row=0,
+            column=1,
             padx=(6, 8),
             pady=4,
             sticky="ew",
         )
 
-        # Por ahora queda deshabilitado hasta definir
-        # las reglas de negocio del módulo ANS Redes.
-        self.btn_ans_redes.configure(
-            state=tk.DISABLED
-        )
-
         # ======================================================
-        # FILA 3
+        # FILA 2: ACCIONES GENERALES
         # ======================================================
 
         self.btn_salida = self.crear_boton(
@@ -456,9 +412,8 @@ class AplicacionANS:
         )
 
         self.btn_salida.grid(
-            row=2,
+            row=1,
             column=0,
-            columnspan=2,
             padx=(8, 6),
             pady=4,
             sticky="ew",
@@ -474,12 +429,338 @@ class AplicacionANS:
         )
 
         self.btn_salir.grid(
-            row=2,
-            column=2,
-            columnspan=2,
+            row=1,
+            column=1,
             padx=(6, 8),
             pady=4,
             sticky="ew",
+        )
+
+    def abrir_panel_conexiones(self) -> None:
+        """
+        Abre el subpanel operativo de ANS Conexiones.
+        """
+
+        if self.proceso_activo:
+            return
+
+        ventana_existente = getattr(
+            self,
+            "ventana_conexiones",
+            None,
+        )
+
+        if (
+            ventana_existente is not None
+            and ventana_existente.winfo_exists()
+        ):
+            ventana_existente.lift()
+            ventana_existente.focus_force()
+            return
+
+        ventana = tk.Toplevel(
+            self.root
+        )
+
+        self.ventana_conexiones = ventana
+
+        ventana.title(
+            "ANS Conexiones"
+        )
+
+        ventana.configure(
+            bg=COLOR_FONDO
+        )
+
+        ancho = 520
+        alto = 360
+
+        self.root.update_idletasks()
+
+        posicion_x = (
+            self.root.winfo_x()
+            + (self.root.winfo_width() - ancho) // 2
+        )
+
+        posicion_y = (
+            self.root.winfo_y()
+            + (self.root.winfo_height() - alto) // 2
+        )
+
+        ventana.geometry(
+            f"{ancho}x{alto}+{posicion_x}+{posicion_y}"
+        )
+
+        ventana.resizable(
+            False,
+            False,
+        )
+
+        ventana.transient(
+            self.root
+        )
+
+        ventana.grab_set()
+
+        encabezado = tk.Frame(
+            ventana,
+            bg=COLOR_VERDE_EMPRESA,
+            height=58,
+        )
+
+        encabezado.pack(
+            fill="x"
+        )
+
+        encabezado.pack_propagate(
+            False
+        )
+
+        tk.Label(
+            encabezado,
+            text="ANS CONEXIONES",
+            bg=COLOR_VERDE_EMPRESA,
+            fg=COLOR_BLANCO,
+            font=("Segoe UI", 16, "bold"),
+        ).pack(
+            expand=True
+        )
+
+        tk.Label(
+            ventana,
+            text=(
+                "Seleccione la operación que desea ejecutar "
+                "para el proceso de conexiones."
+            ),
+            bg=COLOR_FONDO,
+            fg=COLOR_TEXTO_SECUNDARIO,
+            font=("Segoe UI", 9),
+        ).pack(
+            pady=(18, 12)
+        )
+
+        contenedor = tk.Frame(
+            ventana,
+            bg=COLOR_FONDO,
+        )
+
+        contenedor.pack(
+            fill="both",
+            expand=True,
+            padx=34,
+            pady=(0, 22),
+        )
+
+        contenedor.columnconfigure(
+            0,
+            weight=1,
+        )
+
+        self.btn_informe = self.crear_boton(
+            contenedor=contenedor,
+            texto="GENERAR INFORME ANS CONEXIONES",
+            comando=self.iniciar_generacion_informe,
+            color=COLOR_VERDE_EMPRESA_CLARO,
+            color_hover="#A4D65E",
+            color_texto=COLOR_TEXTO,
+        )
+
+        self.btn_informe.grid(
+            row=0,
+            column=0,
+            padx=8,
+            pady=5,
+            sticky="ew",
+        )
+
+        self.btn_dashboard = self.crear_boton(
+            contenedor=contenedor,
+            texto="ACTUALIZAR DASHBOARD CONEXIONES",
+            comando=self.iniciar_actualizacion_dashboard,
+            color="#2874A6",
+            color_hover="#1F618D",
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_dashboard.grid(
+            row=1,
+            column=0,
+            padx=8,
+            pady=5,
+            sticky="ew",
+        )
+
+        self.btn_mapa = self.crear_boton(
+            contenedor=contenedor,
+            texto="GENERAR MAPA CONEXIONES",
+            comando=self.generar_mapa_ans,
+            color=COLOR_VERDE_EMPRESA,
+            color_hover=COLOR_PRINCIPAL_HOVER,
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_mapa.grid(
+            row=2,
+            column=0,
+            padx=8,
+            pady=5,
+            sticky="ew",
+        )
+
+        self.btn_cerrar_conexiones = self.crear_boton(
+            contenedor=contenedor,
+            texto="CERRAR",
+            comando=ventana.destroy,
+            color="#5D6D7E",
+            color_hover="#34495E",
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_cerrar_conexiones.grid(
+            row=3,
+            column=0,
+            padx=90,
+            pady=(10, 0),
+            sticky="ew",
+        )
+
+        ventana.protocol(
+            "WM_DELETE_WINDOW",
+            ventana.destroy,
+        )
+
+    def abrir_panel_redes(self) -> None:
+        """
+        Abre el subpanel reservado para el futuro módulo ANS Redes.
+        """
+
+        if self.proceso_activo:
+            return
+
+        ventana_existente = getattr(
+            self,
+            "ventana_redes",
+            None,
+        )
+
+        if (
+            ventana_existente is not None
+            and ventana_existente.winfo_exists()
+        ):
+            ventana_existente.lift()
+            ventana_existente.focus_force()
+            return
+
+        ventana = tk.Toplevel(
+            self.root
+        )
+
+        self.ventana_redes = ventana
+
+        ventana.title(
+            "ANS Redes"
+        )
+
+        ventana.configure(
+            bg=COLOR_FONDO
+        )
+
+        ancho = 500
+        alto = 300
+
+        self.root.update_idletasks()
+
+        posicion_x = (
+            self.root.winfo_x()
+            + (self.root.winfo_width() - ancho) // 2
+        )
+
+        posicion_y = (
+            self.root.winfo_y()
+            + (self.root.winfo_height() - alto) // 2
+        )
+
+        ventana.geometry(
+            f"{ancho}x{alto}+{posicion_x}+{posicion_y}"
+        )
+
+        ventana.resizable(
+            False,
+            False,
+        )
+
+        ventana.transient(
+            self.root
+        )
+
+        ventana.grab_set()
+
+        encabezado = tk.Frame(
+            ventana,
+            bg="#7F8C8D",
+            height=58,
+        )
+
+        encabezado.pack(
+            fill="x"
+        )
+
+        encabezado.pack_propagate(
+            False
+        )
+
+        tk.Label(
+            encabezado,
+            text="ANS REDES",
+            bg="#7F8C8D",
+            fg=COLOR_BLANCO,
+            font=("Segoe UI", 16, "bold"),
+        ).pack(
+            expand=True
+        )
+
+        tk.Label(
+            ventana,
+            text=(
+                "Módulo reservado para el próximo desarrollo.\n\n"
+                "Las reglas de negocio, el informe, el mapa y el "
+                "dashboard se habilitarán cuando sean definidos."
+            ),
+            bg=COLOR_FONDO,
+            fg=COLOR_TEXTO,
+            font=("Segoe UI", 10),
+            justify="center",
+            wraplength=410,
+        ).pack(
+            expand=True,
+            padx=30,
+            pady=24,
+        )
+
+        boton_cerrar = tk.Button(
+            ventana,
+            text="CERRAR",
+            command=ventana.destroy,
+            bg="#5D6D7E",
+            fg=COLOR_BLANCO,
+            activebackground="#34495E",
+            activeforeground=COLOR_BLANCO,
+            font=("Segoe UI", 10, "bold"),
+            relief="ridge",
+            borderwidth=3,
+            cursor="hand2",
+            height=2,
+        )
+
+        boton_cerrar.pack(
+            fill="x",
+            padx=120,
+            pady=(0, 24),
+        )
+
+        ventana.protocol(
+            "WM_DELETE_WINDOW",
+            ventana.destroy,
         )
 
     def crear_boton(
@@ -818,7 +1099,7 @@ class AplicacionANS:
         bloquear: bool,
     ) -> None:
         """
-        Habilita o deshabilita los botones principales.
+        Habilita o deshabilita los controles disponibles.
         """
 
         estado = (
@@ -827,11 +1108,11 @@ class AplicacionANS:
             else tk.NORMAL
         )
 
-        self.btn_informe.configure(
+        self.btn_modulo_conexiones.configure(
             state=estado
         )
 
-        self.btn_mapa.configure(
+        self.btn_modulo_redes.configure(
             state=estado
         )
 
@@ -839,15 +1120,27 @@ class AplicacionANS:
             state=estado
         )
 
-        self.btn_dashboard.configure(
-            state=estado
+        controles_subpanel = (
+            "btn_informe",
+            "btn_dashboard",
+            "btn_mapa",
+            "btn_cerrar_conexiones",
         )
 
-        # Solo se habilitará cuando el módulo ANS Redes
-        # esté completamente desarrollado.
-        self.btn_ans_redes.configure(
-            state=tk.DISABLED
-        )
+        for nombre_control in controles_subpanel:
+            control = getattr(
+                self,
+                nombre_control,
+                None,
+            )
+
+            if (
+                control is not None
+                and control.winfo_exists()
+            ):
+                control.configure(
+                    state=estado
+                )
 
         self.proceso_activo = bloquear
 
@@ -1395,15 +1688,6 @@ class AplicacionANS:
             lambda: self.barra_progreso.configure(
                 value=0
             ),
-        )
-    def modulo_ans_redes_pendiente(self) -> None:
-        """
-        Módulo ANS Redes pendiente de definición funcional.
-        """
-
-        messagebox.showinfo(
-            NOMBRE_APLICACION,
-            "El módulo ANS Redes está pendiente de definición.",
         )
 
     def cerrar_aplicacion(self) -> None:
