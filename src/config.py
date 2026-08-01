@@ -45,6 +45,12 @@ RUTA_CACHE_GEOCODIFICACION = (
     CONFIG_DIR / "CACHE_GEOCODIFICACION.xlsx"
 )
 
+RUTA_ICONO_APLICACION = (
+    BASE_DIR
+    / "assets"
+    / "LOGO.ico"
+)
+
 
 # ==========================================================
 # ARCHIVOS DE SALIDA
@@ -178,7 +184,7 @@ COLOR_BLANCO = "#FFFFFF"
 ANCHO_VENTANA = 760
 ALTO_VENTANA = 650
 
-TITULO_PRINCIPAL = "INFORME ANS"
+TITULO_PRINCIPAL = "INFORME ANS - ATC CHEC"
 
 SUBTITULO_PRINCIPAL = (
     "Generación de informes ANS y mapas geográficos"

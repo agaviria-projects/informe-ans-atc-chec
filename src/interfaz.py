@@ -14,6 +14,7 @@ from typing import Callable
 
 from PIL import Image, ImageTk
 
+
 from src.actualizador_dashboard import (
     ErrorActualizacionDashboard,
     actualizar_dashboard,
@@ -35,6 +36,7 @@ from src.config import (
     COLOR_VERDE_EMPRESA_CLARO,
     ENTRADA_DIR,
     NOMBRE_APLICACION,
+    RUTA_ICONO_APLICACION,
     RUTA_LOGO_EMPRESA,
     SALIDA_DIR,
     SUBTITULO_PRINCIPAL,
@@ -87,6 +89,18 @@ class AplicacionANS:
         self.root.title(
             f"{NOMBRE_APLICACION} - Versión {VERSION_APLICACION}"
         )
+
+        try:
+            self.root.iconbitmap(
+                str(
+                    RUTA_ICONO_APLICACION
+                )
+            )
+
+        except tk.TclError:
+            logger.warning(
+                "No fue posible cargar el ícono de la aplicación."
+            )
 
         self.root.configure(
             bg=COLOR_FONDO
@@ -447,6 +461,18 @@ class AplicacionANS:
             "ANS Conexiones"
         )
 
+        try:
+            ventana.iconbitmap(
+                str(
+                    RUTA_ICONO_APLICACION
+                )
+            )
+
+        except tk.TclError:
+            logger.warning(
+                "No fue posible cargar el ícono del subpanel Conexiones."
+            )
+
         ventana.configure(
             bg=COLOR_FONDO
         )
@@ -697,7 +723,18 @@ class AplicacionANS:
         ventana.title(
             "ANS Redes"
         )
+        try:
+            ventana.iconbitmap(
+                str(
+                    RUTA_ICONO_APLICACION
+                )
+            )
 
+        except tk.TclError:
+            logger.warning(
+                "No fue posible cargar el ícono del subpanel Redes."
+            )
+            
         ventana.configure(
             bg=COLOR_FONDO
         )
