@@ -12,6 +12,7 @@ from src.config import (
     HOJA_FESTIVOS_ADICIONALES,
     HOJA_PARAMETROS_ANS,
     HOJA_REGLAS_NEGOCIO,
+    HOJA_REGLAS_PRIORIDAD,
     RUTA_DIAS_CONTRACTUALES,
 )
 
@@ -341,6 +342,165 @@ def cargar_reglas_municipios() -> dict[str, int]:
         ] = dias
 
     return reglas
+
+def cargar_reglas_prioridad() -> list[dict]:
+    """
+    Lee la hoja REGLAS_PRIORIDAD y construye las reglas
+    especiales basadas en el contenido de OBSERVACION.
+
+    Cada regla contiene:
+
+    - PALABRA_CLAVE
+    - TIPO
+    - DIAS
+    """
+
+    dataframe = leer_hoja_excel(
+        RUTA_DIAS_CONTRACTUALES,
+        HOJA_REGLAS_PRIORIDAD,
+    )
+
+    columnas_requeridas = {
+        "PALABRA_CLAVE",
+        "TIPO",
+        "DIAS",
+    }
+
+    faltantes = columnas_requeridas.difference(
+        dataframe.columns
+    )
+
+    if faltantes:
+        detalle = "\n".join(
+            f"- {columna}"
+            for columna in sorted(
+                faltantes
+            )
+        )
+
+        raise ErrorCalculoANS(
+            "Faltan columnas en REGLAS_PRIORIDAD:\n\n"
+            f"{detalle}"
+        )
+
+    dataframe = dataframe[
+        [
+            "PALABRA_CLAVE",
+            "TIPO",
+            "DIAS",
+        ]
+    ].copy()
+
+    dataframe["CLAVE_PRIORIDAD"] = (
+        dataframe["PALABRA_CLAVE"]
+        .apply(
+            normalizar_clave
+        )
+    )
+
+    dataframe["TIPO_NORMALIZADO"] = (
+        dataframe["TIPO"]
+        .apply(
+            limpiar_texto
+        )
+        .str.upper()
+    )
+
+    dataframe = dataframe[
+        dataframe["CLAVE_PRIORIDAD"].ne("")
+    ].copy()
+
+    if dataframe.empty:
+        raise ErrorCalculoANS(
+            "La hoja REGLAS_PRIORIDAD no contiene reglas."
+        )
+
+    duplicados = dataframe[
+        dataframe["CLAVE_PRIORIDAD"].duplicated(
+            keep=False
+        )
+    ]
+
+    if not duplicados.empty:
+        palabras = sorted(
+            {
+                limpiar_texto(valor)
+                for valor in duplicados[
+                    "PALABRA_CLAVE"
+                ]
+            }
+        )
+
+        raise ErrorCalculoANS(
+            "Existen palabras clave duplicadas en "
+            "REGLAS_PRIORIDAD:\n\n"
+            + "\n".join(
+                f"- {palabra}"
+                for palabra in palabras
+            )
+        )
+
+    reglas: list[dict] = []
+
+    for _, fila in dataframe.iterrows():
+
+        palabra_clave = limpiar_texto(
+            fila["PALABRA_CLAVE"]
+        )
+
+        clave_prioridad = fila[
+            "CLAVE_PRIORIDAD"
+        ]
+
+        tipo = limpiar_texto(
+            fila["TIPO_NORMALIZADO"]
+        )
+
+        dias = convertir_entero_positivo(
+            fila["DIAS"],
+            (
+                "DIAS de la regla "
+                f"{palabra_clave}"
+            ),
+            permitir_cero=True,
+        )
+
+        reglas.append(
+            {
+                "PALABRA_CLAVE": palabra_clave,
+                "CLAVE_PRIORIDAD": clave_prioridad,
+                "TIPO": tipo,
+                "DIAS": dias,
+            }
+        )
+
+    return reglas
+def buscar_regla_prioridad(
+    observacion: object,
+    reglas_prioridad: list[dict],
+) -> dict | None:
+    """
+    Busca una palabra clave dentro de OBSERVACION.
+
+    Retorna la regla encontrada o None.
+    """
+
+    observacion_normalizada = normalizar_clave(
+        observacion
+    )
+
+    if not observacion_normalizada:
+        return None
+
+    for regla in reglas_prioridad:
+
+        if (
+            regla["CLAVE_PRIORIDAD"]
+            in observacion_normalizada
+        ):
+            return regla
+
+    return None
 
 
 def cargar_parametros() -> dict[str, object]:
@@ -748,11 +908,13 @@ def aplicar_calculos_ans(
     fecha_corte: date | datetime | pd.Timestamp | None = None,
 ) -> tuple[pd.DataFrame, dict]:
     """
-    Asigna días pactados y calcula todos los indicadores ANS.
+    Asigna el tipo de regla, los días pactados y calcula
+    todos los indicadores ANS.
 
-    El archivo DIAS_CONTRACTUALES.xlsx se lee en cada ejecución,
-    por lo que cualquier cambio guardado por el usuario se aplica
-    automáticamente al volver a generar el informe.
+    Prioridad:
+
+    1. Busca reglas especiales en OBSERVACION.
+    2. Si no encuentra coincidencia, usa la regla del municipio.
     """
 
     validar_archivo_configuracion()
@@ -760,6 +922,7 @@ def aplicar_calculos_ans(
     columnas_requeridas = {
         "FECHA_ORDEN",
         "DESC_MUNICIPIO",
+        "OBSERVACION",
     }
 
     faltantes = columnas_requeridas.difference(
@@ -779,23 +942,19 @@ def aplicar_calculos_ans(
             f"{detalle}"
         )
 
+    # ======================================================
+    # CARGAR REGLAS Y PARÁMETROS
+    # ======================================================
+
     reglas_municipios = cargar_reglas_municipios()
+
+    reglas_prioridad = cargar_reglas_prioridad()
+
     parametros = cargar_parametros()
 
-    # ==========================================================
+    # ======================================================
     # CARGAR FESTIVOS ADICIONALES
-    # ==========================================================
-
-    # Si EXCLUIR_FESTIVOS_ADICIONALES = SI:
-    # se lee la hoja FESTIVOS_ADICIONALES.
-    #
-    # Dentro de esa hoja:
-    # - ACTIVO = SI  -> la fecha se excluye del cálculo ANS.
-    # - ACTIVO = NO  -> la fecha se ignora.
-    #
-    # Si EXCLUIR_FESTIVOS_ADICIONALES = NO:
-    # no se utiliza ninguna fecha de esa hoja y se crea
-    # un conjunto vacío.
+    # ======================================================
 
     festivos_adicionales = (
         cargar_festivos_adicionales()
@@ -816,10 +975,20 @@ def aplicar_calculos_ans(
         "FECHA_ORDEN"
     ].dropna()
 
+    # ======================================================
+    # FECHA DE CORTE
+    # ======================================================
+
     if fecha_corte is None:
-        fecha_actual = pd.Timestamp.today().normalize().date()
+
+        fecha_actual = (
+            pd.Timestamp.today()
+            .normalize()
+            .date()
+        )
 
     else:
+
         fecha_actual_convertida = pd.to_datetime(
             fecha_corte,
             errors="coerce",
@@ -839,15 +1008,32 @@ def aplicar_calculos_ans(
         )
 
     if fechas_validas.empty:
+
         fecha_minima = fecha_actual
 
     else:
+
         fecha_minima = min(
             fechas_validas.min().date(),
             fecha_actual,
         )
-    dias_maximos = max(
+
+    # ======================================================
+    # RANGO DEL CALENDARIO
+    # ======================================================
+
+    dias_municipios = list(
         reglas_municipios.values()
+    )
+
+    dias_prioridad = [
+        int(regla["DIAS"])
+        for regla in reglas_prioridad
+    ]
+
+    dias_maximos = max(
+        dias_municipios
+        + dias_prioridad
     )
 
     fecha_maxima = max(
@@ -860,6 +1046,10 @@ def aplicar_calculos_ans(
     ) + timedelta(
         days=(dias_maximos * 4) + 370
     )
+
+    # ======================================================
+    # CALENDARIO DE FESTIVOS
+    # ======================================================
 
     festivos: set[date] = set(
         festivos_adicionales
@@ -875,10 +1065,8 @@ def aplicar_calculos_ans(
             )
         )
 
-
     dias_inicio_alerta = parametros[
         "DIAS_INICIO_ALERTA"
-
     ]
 
     excluir_sabados = parametros[
@@ -889,13 +1077,22 @@ def aplicar_calculos_ans(
         "EXCLUIR_DOMINGOS"
     ]
 
+    # ======================================================
+    # ACUMULADORES
+    # ======================================================
+
     fechas_invalidas = 0
 
+    tipos_resultado: list[str] = []
     dias_pactados_resultado: list[object] = []
     fechas_limite_resultado: list[object] = []
     dias_transcurridos_resultado: list[object] = []
     dias_restantes_resultado: list[object] = []
     estados_resultado: list[str] = []
+
+    # ======================================================
+    # PROCESAR REGISTROS
+    # ======================================================
 
     for _, fila in resultado.iterrows():
 
@@ -909,24 +1106,64 @@ def aplicar_calculos_ans(
             )
         )
 
-        clave_municipio = normalizar_clave(
-            municipio
+        observacion = limpiar_texto(
+            fila.get(
+                "OBSERVACION"
+            )
         )
 
-        if clave_municipio not in reglas_municipios:
-            raise ErrorCalculoANS(
-                "El municipio no está configurado en "
-                "REGLAS_DE_NEGOCIO:\n\n"
-                f"- {municipio}"
+        # --------------------------------------------------
+        # BUSCAR REGLA PRIORITARIA
+        # --------------------------------------------------
+
+        regla_prioridad = buscar_regla_prioridad(
+            observacion=observacion,
+            reglas_prioridad=reglas_prioridad,
+        )
+
+        if regla_prioridad is not None:
+
+            tipo = regla_prioridad[
+                "TIPO"
+            ]
+
+            dias_pactados = regla_prioridad[
+                "DIAS"
+            ]
+
+        else:
+
+            tipo = "MUNICIPIO"
+
+            clave_municipio = normalizar_clave(
+                municipio
             )
 
-        dias_pactados = reglas_municipios[
-            clave_municipio
-        ]
+            if (
+                clave_municipio
+                not in reglas_municipios
+            ):
+                raise ErrorCalculoANS(
+                    "El municipio no está configurado en "
+                    "REGLAS_DE_NEGOCIO:\n\n"
+                    f"- {municipio}"
+                )
+
+            dias_pactados = reglas_municipios[
+                clave_municipio
+            ]
+
+        tipos_resultado.append(
+            tipo
+        )
 
         dias_pactados_resultado.append(
             dias_pactados
         )
+
+        # --------------------------------------------------
+        # VALIDAR FECHA DE ORDEN
+        # --------------------------------------------------
 
         if pd.isna(
             fecha_orden
@@ -958,6 +1195,10 @@ def aplicar_calculos_ans(
             .date()
         )
 
+        # --------------------------------------------------
+        # FECHA LÍMITE
+        # --------------------------------------------------
+
         fecha_limite = sumar_dias_habiles(
             fecha_inicio=fecha_orden_date,
             dias_pactados=dias_pactados,
@@ -965,6 +1206,10 @@ def aplicar_calculos_ans(
             excluir_domingos=excluir_domingos,
             festivos=festivos,
         )
+
+        # --------------------------------------------------
+        # DÍAS TRANSCURRIDOS
+        # --------------------------------------------------
 
         dias_transcurridos = contar_dias_habiles(
             fecha_inicial_exclusiva=fecha_orden_date,
@@ -974,6 +1219,10 @@ def aplicar_calculos_ans(
             festivos=festivos,
         )
 
+        # --------------------------------------------------
+        # DÍAS RESTANTES
+        # --------------------------------------------------
+
         dias_restantes = calcular_dias_restantes(
             fecha_actual=fecha_actual,
             fecha_limite=fecha_limite,
@@ -982,10 +1231,24 @@ def aplicar_calculos_ans(
             festivos=festivos,
         )
 
-        estado = determinar_estado(
-            dias_restantes=dias_restantes,
-            umbral_alerta=dias_inicio_alerta,
-        )
+        # --------------------------------------------------
+        # ESTADO
+        # --------------------------------------------------
+
+        if tipo in {
+            "HV",
+            "FACTIBILIDAD",
+            "INMEDIATO",
+        }:
+
+            estado = tipo
+
+        else:
+
+            estado = determinar_estado(
+                dias_restantes=dias_restantes,
+                umbral_alerta=dias_inicio_alerta,
+            )
 
         fechas_limite_resultado.append(
             pd.Timestamp(
@@ -1004,6 +1267,12 @@ def aplicar_calculos_ans(
         estados_resultado.append(
             estado
         )
+
+    # ======================================================
+    # ASIGNAR RESULTADOS
+    # ======================================================
+
+    resultado["TIPO"] = tipos_resultado
 
     resultado["DIAS_PACTADOS"] = pd.array(
         dias_pactados_resultado,
@@ -1027,12 +1296,19 @@ def aplicar_calculos_ans(
 
     resultado["ESTADO"] = estados_resultado
 
+    # ======================================================
+    # CONTROL
+    # ======================================================
+
     control = {
         "FECHA_CORTE_ANS": fecha_actual.strftime(
             "%d/%m/%Y"
         ),
         "REGLAS_MUNICIPIOS_CARGADAS": len(
             reglas_municipios
+        ),
+        "REGLAS_PRIORIDAD_CARGADAS": len(
+            reglas_prioridad
         ),
         "DIAS_INICIO_ALERTA": dias_inicio_alerta,
         "FESTIVOS_CONSIDERADOS": len(
@@ -1054,10 +1330,26 @@ def aplicar_calculos_ans(
             .eq("A TIEMPO")
             .sum()
         ),
+        "PEDIDOS_INMEDIATOS": int(
+            resultado["ESTADO"]
+            .eq("INMEDIATO")
+            .sum()
+        ),
+        "PEDIDOS_HV": int(
+            resultado["ESTADO"]
+            .eq("HV")
+            .sum()
+        ),
+        "PEDIDOS_FACTIBILIDAD": int(
+            resultado["ESTADO"]
+            .eq("FACTIBILIDAD")
+            .sum()
+        ),
     }
 
     logger.info(
         "Cálculos ANS finalizados | %s",
         control,
     )
+
     return resultado, control

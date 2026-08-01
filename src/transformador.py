@@ -28,6 +28,7 @@ COLUMNAS_ORIGEN_REQUERIDAS = [
 # ==========================================================
 
 COLUMNAS_CALCULADAS = [
+    "TIPO",
     "DIAS_PACTADOS",
     "FECHA_LIMITE_ANS",
     "DIAS_TRANSCURRIDOS",
@@ -49,6 +50,7 @@ ORDEN_COLUMNAS_SALIDA = [
     "MUNICIPIO",
     "DESC_MUNICIPIO",
     "REGION_ORIGEN",
+    "TIPO",
     "DIAS_PACTADOS",
     "FECHA_LIMITE_ANS",
     "DIAS_TRANSCURRIDOS",
@@ -202,6 +204,7 @@ def preparar_columnas_sistema(
 
     resultado = dataframe.copy()
 
+    resultado["TIPO"] = "MUNICIPIO"
     resultado["DIAS_PACTADOS"] = pd.NA
     resultado["FECHA_LIMITE_ANS"] = pd.NaT
     resultado["DIAS_TRANSCURRIDOS"] = pd.NA

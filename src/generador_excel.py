@@ -4,7 +4,6 @@ from pathlib import Path
 import pandas as pd
 
 from openpyxl import load_workbook
-from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import (
     Alignment,
     Border,
@@ -37,9 +36,12 @@ COLOR_BORDE = "AAB7B8"
 # COLORES DE ESTADOS ANS
 # ==========================================================
 
-COLOR_VENCIDO = "FF1F1F"       # Rojo encendido
-COLOR_ALERTA = "FFD426"        # Amarillo intenso
-COLOR_A_TIEMPO = "8BCF4A"      # Verde claro intenso
+COLOR_VENCIDO = "FF1F1F"       # Rojo
+COLOR_ALERTA = "FFD426"        # Amarillo
+COLOR_A_TIEMPO = "8BCF4A"      # Verde
+COLOR_INMEDIATO = "F39C12"     # Naranja
+COLOR_HV = "3498DB"            # Azul
+COLOR_FACTIBILIDAD = "17A589"  # Azul verdoso
 COLOR_PENDIENTE = "647687"     # Gris azulado
 
 COLOR_TEXTO_ESTADO = "000000"
@@ -47,20 +49,21 @@ COLOR_TEXTO_PENDIENTE = "FFFFFF"
 
 
 ANCHOS_COLUMNAS = {
-    "A": 16,  # ID_ORDEN
-    "B": 15,  # FECHA_ORDEN
-    "C": 45,  # DIRECCION
-    "D": 33,  # PROPIETARIO
-    "E": 10,  # ZONA
-    "F": 15,  # MUNICIPIO
-    "G": 24,  # DESC_MUNICIPIO
-    "H": 17,  # REGION_ORIGEN
-    "I": 16,  # DIAS_PACTADOS
-    "J": 20,  # FECHA_LIMITE_ANS
-    "K": 22,  # DIAS_TRANSCURRIDOS
-    "L": 18,  # DIAS_RESTANTES
-    "M": 25,  # ESTADO
-    "N": 110,  # OBSERVACION
+    "A": 16,   # ID_ORDEN
+    "B": 15,   # FECHA_ORDEN
+    "C": 45,   # DIRECCION
+    "D": 33,   # PROPIETARIO
+    "E": 10,   # ZONA
+    "F": 15,   # MUNICIPIO
+    "G": 24,   # DESC_MUNICIPIO
+    "H": 17,   # REGION_ORIGEN
+    "I": 18,   # TIPO
+    "J": 16,   # DIAS_PACTADOS
+    "K": 20,   # FECHA_LIMITE_ANS
+    "L": 22,   # DIAS_TRANSCURRIDOS
+    "M": 18,   # DIAS_RESTANTES
+    "N": 25,   # ESTADO
+    "O": 110,  # OBSERVACION
 }
 
 
@@ -108,7 +111,7 @@ def crear_dataframe_control(
 
 def aplicar_diseno_hoja_datos(
     ruta_archivo: Path,
-    ) -> None:
+) -> None:
     """
     Convierte DATOS_ANS en una tabla profesional.
     """
@@ -129,7 +132,12 @@ def aplicar_diseno_hoja_datos(
         color=COLOR_BORDE,
     )
 
+    # ======================================================
+    # ENCABEZADOS
+    # ======================================================
+
     for celda in hoja[1]:
+
         celda.fill = PatternFill(
             fill_type="solid",
             fgColor=COLOR_VERDE_OSCURO,
@@ -158,11 +166,11 @@ def aplicar_diseno_hoja_datos(
     ultima_fila = hoja.max_row
     ultima_columna = hoja.max_column
 
-    if ultima_fila >= 2:
+    # ======================================================
+    # TABLA ESTRUCTURADA
+    # ======================================================
 
-        # ------------------------------------------------------
-        # Si la tabla ya existe, eliminarla antes de crearla.
-        # ------------------------------------------------------
+    if ultima_fila >= 2:
 
         if "TablaDatosANS" in hoja.tables:
             del hoja.tables["TablaDatosANS"]
@@ -178,7 +186,7 @@ def aplicar_diseno_hoja_datos(
             ref=referencia,
         )
 
-        estilo_tabla = TableStyleInfo(
+        tabla.tableStyleInfo = TableStyleInfo(
             name="TableStyleMedium4",
             showFirstColumn=False,
             showLastColumn=False,
@@ -186,17 +194,19 @@ def aplicar_diseno_hoja_datos(
             showColumnStripes=False,
         )
 
-        tabla.tableStyleInfo = estilo_tabla
-
         hoja.add_table(
             tabla
         )
+
+    # ======================================================
+    # ANCHOS DE COLUMNAS
+    # ======================================================
 
     for columna, ancho in ANCHOS_COLUMNAS.items():
         hoja.column_dimensions[columna].width = ancho
 
     # ======================================================
-    # FORMATO DE LAS FILAS DEL INFORME
+    # FORMATO DE FILAS
     # ======================================================
 
     for fila in range(
@@ -204,33 +214,29 @@ def aplicar_diseno_hoja_datos(
         ultima_fila + 1,
     ):
 
-        # ----------------------------------------------
-        # FORMATOS NUMÉRICOS Y DE FECHA
-        # ----------------------------------------------
-
+        # ID_ORDEN como texto.
         hoja.cell(
             row=fila,
             column=1,
         ).number_format = "@"
 
+        # FECHA_ORDEN.
         hoja.cell(
             row=fila,
             column=2,
         ).number_format = "dd/mm/yyyy"
 
+        # MUNICIPIO como texto.
         hoja.cell(
             row=fila,
             column=6,
         ).number_format = "@"
 
+        # FECHA_LIMITE_ANS ahora está en K.
         hoja.cell(
             row=fila,
-            column=10,
+            column=11,
         ).number_format = "dd/mm/yyyy"
-
-        # ----------------------------------------------
-        # ALINEACIÓN GENERAL
-        # ----------------------------------------------
 
         for columna in range(
             1,
@@ -242,29 +248,38 @@ def aplicar_diseno_hoja_datos(
                 column=columna,
             )
 
-            # Columnas de texto descriptivo.
+            # Dirección y propietario.
             if columna in {
-                3,   # DIRECCION
-                4,   # PROPIETARIO
-                14,  # OBSERVACION
-            }:
+                    3,
+                    4,
+                }:
+                    celda.alignment = Alignment(
+                        horizontal="left",
+                        vertical="center",
+                        wrap_text=False,
+                    )
+
+            # Observación.
+            elif columna == 15:
                 celda.alignment = Alignment(
                     horizontal="left",
-                    vertical="center",
-                    wrap_text=False,
+                    vertical="top",
+                    wrap_text=True,
                 )
+            
 
-            # Columnas numéricas, fechas y estados.
+            # Columnas centradas.
             elif columna in {
                 2,   # FECHA_ORDEN
                 5,   # ZONA
                 6,   # MUNICIPIO
                 8,   # REGION_ORIGEN
-                9,   # DIAS_PACTADOS
-                10,  # FECHA_LIMITE_ANS
-                11,  # DIAS_TRANSCURRIDOS
-                12,  # DIAS_RESTANTES
-                13,  # ESTADO
+                9,   # TIPO
+                10,  # DIAS_PACTADOS
+                11,  # FECHA_LIMITE_ANS
+                12,  # DIAS_TRANSCURRIDOS
+                13,  # DIAS_RESTANTES
+                14,  # ESTADO
             }:
                 celda.alignment = Alignment(
                     horizontal="center",
@@ -279,55 +294,10 @@ def aplicar_diseno_hoja_datos(
                     wrap_text=False,
                 )
 
-        # Mantiene todas las filas compactas y uniformes.
         hoja.row_dimensions[fila].height = 22
 
-        hoja.cell(
-            fila,
-            1,
-        ).number_format = "@"
-
-        hoja.cell(
-            fila,
-            2,
-        ).number_format = "dd/mm/yyyy"
-
-        hoja.cell(
-            fila,
-            6,
-        ).number_format = "@"
-
-        hoja.cell(
-            fila,
-            10,
-        ).number_format = "dd/mm/yyyy"
-
-        for columna in range(
-            1,
-            ultima_columna + 1,
-        ):
-            hoja.cell(
-                fila,
-                columna,
-            ).alignment = Alignment(
-                vertical="top",
-                wrap_text=columna in {
-                    3,
-                    4,
-                    14,
-                },
-            )
-
-        hoja.cell(
-            fila,
-            13,
-        ).alignment = Alignment(
-            horizontal="center",
-            vertical="center",
-        )
-
     # ======================================================
-    # COLORES DIRECTOS PARA LOS ESTADOS ANS
+    # COLORES DIRECTOS PARA ESTADO
     # ======================================================
 
     for fila in range(
@@ -335,9 +305,10 @@ def aplicar_diseno_hoja_datos(
         ultima_fila + 1,
     ):
 
+        # ESTADO ahora está en la columna N = 14.
         celda_estado = hoja.cell(
             row=fila,
-            column=13,
+            column=14,
         )
 
         estado = str(
@@ -346,70 +317,73 @@ def aplicar_diseno_hoja_datos(
 
         if estado == "VENCIDO":
 
-            celda_estado.fill = PatternFill(
-                fill_type="solid",
-                fgColor=COLOR_VENCIDO,
-            )
-
-            celda_estado.font = Font(
-                color=COLOR_TEXTO_ESTADO,
-                bold=True,
-            )
+            color_fondo = COLOR_VENCIDO
+            color_texto = COLOR_TEXTO_ESTADO
 
         elif estado == "ALERTA":
 
-            celda_estado.fill = PatternFill(
-                fill_type="solid",
-                fgColor=COLOR_ALERTA,
-            )
-
-            celda_estado.font = Font(
-                color=COLOR_TEXTO_ESTADO,
-                bold=True,
-            )
+            color_fondo = COLOR_ALERTA
+            color_texto = COLOR_TEXTO_ESTADO
 
         elif estado == "A TIEMPO":
 
-            celda_estado.fill = PatternFill(
-                fill_type="solid",
-                fgColor=COLOR_A_TIEMPO,
-            )
+            color_fondo = COLOR_A_TIEMPO
+            color_texto = COLOR_TEXTO_ESTADO
 
-            celda_estado.font = Font(
-                color=COLOR_TEXTO_ESTADO,
-                bold=True,
-            )
+        elif estado == "INMEDIATO":
+
+            color_fondo = COLOR_INMEDIATO
+            color_texto = COLOR_TEXTO_ESTADO
+
+        elif estado == "HV":
+
+            color_fondo = COLOR_HV
+            color_texto = COLOR_BLANCO
+
+        elif estado == "FACTIBILIDAD":
+
+            color_fondo = COLOR_FACTIBILIDAD
+            color_texto = COLOR_BLANCO
 
         elif estado in {
             "SIN FECHA",
             "PENDIENTE CONFIGURACIÓN",
         }:
 
+            color_fondo = COLOR_PENDIENTE
+            color_texto = COLOR_TEXTO_PENDIENTE
+
+        else:
+
+            color_fondo = None
+            color_texto = COLOR_TEXTO_ESTADO
+
+        if color_fondo:
+
             celda_estado.fill = PatternFill(
                 fill_type="solid",
-                fgColor=COLOR_PENDIENTE,
+                fgColor=color_fondo,
             )
 
-            celda_estado.font = Font(
-                color=COLOR_TEXTO_PENDIENTE,
-                bold=True,
-            )
+        celda_estado.font = Font(
+            color=color_texto,
+            bold=True,
+        )
 
         celda_estado.alignment = Alignment(
             horizontal="center",
             vertical="center",
             wrap_text=False,
         )
-        
+
     libro.save(
         ruta_archivo
     )
-
 def aplicar_diseno_hoja_control(
     ruta_archivo: Path,
 ) -> None:
     """
-    Aplica formato a la hoja de auditoría.
+    Aplica formato a la hoja de control.
     """
 
     libro = load_workbook(
@@ -423,7 +397,13 @@ def aplicar_diseno_hoja_control(
     hoja.freeze_panes = "A2"
     hoja.sheet_view.showGridLines = False
 
+    borde = Side(
+        style="thin",
+        color=COLOR_BORDE,
+    )
+
     for celda in hoja[1]:
+
         celda.fill = PatternFill(
             fill_type="solid",
             fgColor=COLOR_VERDE_OSCURO,
@@ -439,23 +419,20 @@ def aplicar_diseno_hoja_control(
             vertical="center",
         )
 
-    hoja.column_dimensions["A"].width = 18
-    hoja.column_dimensions["B"].width = 35
-    hoja.column_dimensions["C"].width = 100
+        celda.border = Border(
+            left=borde,
+            right=borde,
+            top=borde,
+            bottom=borde,
+        )
 
-    for fila in hoja.iter_rows(
-        min_row=2,
-    ):
-        for celda in fila:
-            celda.alignment = Alignment(
-                vertical="top",
-                wrap_text=True,
-            )
+    hoja.column_dimensions["A"].width = 20
+    hoja.column_dimensions["B"].width = 35
+    hoja.column_dimensions["C"].width = 80
 
     libro.save(
         ruta_archivo
     )
-
 
 def generar_informe_excel(
     dataframe: pd.DataFrame,
