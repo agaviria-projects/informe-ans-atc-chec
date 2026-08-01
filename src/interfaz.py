@@ -5,6 +5,8 @@ import sys
 import threading
 import tkinter as tk
 
+import pythoncom
+import win32com.client as win32
 
 from datetime import datetime
 from tkinter import messagebox, scrolledtext, ttk
@@ -19,6 +21,7 @@ from src.actualizador_dashboard import (
 
 from src.config import (
     ALTO_VENTANA,
+    BASE_DIR,
     ANCHO_VENTANA,
     COLOR_BLANCO,
     COLOR_BORDE,
@@ -338,9 +341,9 @@ class AplicacionANS:
         """
         Construye el menú principal por módulos.
 
-        La ventana principal solo muestra los procesos generales:
-        ANS CONEXIONES y ANS REDES. Cada módulo abre su propio
-        subpanel de acciones para evitar saturar la interfaz.
+        La ventana principal presenta únicamente los módulos
+        ANS CONEXIONES y ANS REDES. Las acciones específicas
+        se administran dentro de cada subpanel.
         """
 
         contenedor = tk.Frame(
@@ -359,10 +362,6 @@ class AplicacionANS:
             weight=1,
             uniform="modulos",
         )
-
-        # ======================================================
-        # FILA 1: MÓDULOS PRINCIPALES
-        # ======================================================
 
         self.btn_modulo_conexiones = self.crear_boton(
             contenedor=contenedor,
@@ -398,27 +397,6 @@ class AplicacionANS:
             sticky="ew",
         )
 
-        # ======================================================
-        # FILA 2: ACCIONES GENERALES
-        # ======================================================
-
-        self.btn_salida = self.crear_boton(
-            contenedor=contenedor,
-            texto="ABRIR CARPETA\nDE SALIDA",
-            comando=self.abrir_carpeta_salida,
-            color=COLOR_PRINCIPAL,
-            color_hover=COLOR_PRINCIPAL_HOVER,
-            color_texto=COLOR_BLANCO,
-        )
-
-        self.btn_salida.grid(
-            row=1,
-            column=0,
-            padx=(8, 6),
-            pady=4,
-            sticky="ew",
-        )
-
         self.btn_salir = self.crear_boton(
             contenedor=contenedor,
             texto="SALIR DEL PANEL",
@@ -430,9 +408,10 @@ class AplicacionANS:
 
         self.btn_salir.grid(
             row=1,
-            column=1,
-            padx=(6, 8),
-            pady=4,
+            column=0,
+            columnspan=2,
+            padx=110,
+            pady=(6, 0),
             sticky="ew",
         )
 
@@ -472,8 +451,8 @@ class AplicacionANS:
             bg=COLOR_FONDO
         )
 
-        ancho = 520
-        alto = 360
+        ancho = 560
+        alto = 520
 
         self.root.update_idletasks()
 
@@ -536,7 +515,7 @@ class AplicacionANS:
             fg=COLOR_TEXTO_SECUNDARIO,
             font=("Segoe UI", 9),
         ).pack(
-            pady=(18, 12)
+            pady=(16, 10)
         )
 
         contenedor = tk.Frame(
@@ -548,7 +527,7 @@ class AplicacionANS:
             fill="both",
             expand=True,
             padx=34,
-            pady=(0, 22),
+            pady=(0, 20),
         )
 
         contenedor.columnconfigure(
@@ -569,7 +548,7 @@ class AplicacionANS:
             row=0,
             column=0,
             padx=8,
-            pady=5,
+            pady=4,
             sticky="ew",
         )
 
@@ -586,7 +565,41 @@ class AplicacionANS:
             row=1,
             column=0,
             padx=8,
-            pady=5,
+            pady=4,
+            sticky="ew",
+        )
+
+        self.btn_abrir_informe = self.crear_boton(
+            contenedor=contenedor,
+            texto="ABRIR INFORME ANS CONEXIONES",
+            comando=self.abrir_informe_conexiones,
+            color="#239B56",
+            color_hover="#1E8449",
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_abrir_informe.grid(
+            row=2,
+            column=0,
+            padx=8,
+            pady=4,
+            sticky="ew",
+        )
+
+        self.btn_abrir_dashboard = self.crear_boton(
+            contenedor=contenedor,
+            texto="ABRIR ARCHIVO DASHBOARD CONEXIONES",
+            comando=self.abrir_archivo_dashboard_conexiones,
+            color="#17A589",
+            color_hover="#148F77",
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_abrir_dashboard.grid(
+            row=3,
+            column=0,
+            padx=8,
+            pady=4,
             sticky="ew",
         )
 
@@ -600,34 +613,58 @@ class AplicacionANS:
         )
 
         self.btn_mapa.grid(
-            row=2,
+            row=4,
             column=0,
             padx=8,
-            pady=5,
+            pady=4,
             sticky="ew",
         )
 
         self.btn_cerrar_conexiones = self.crear_boton(
             contenedor=contenedor,
             texto="CERRAR",
-            comando=ventana.destroy,
+            comando=self.cerrar_panel_conexiones,
             color="#5D6D7E",
             color_hover="#34495E",
             color_texto=COLOR_BLANCO,
         )
 
         self.btn_cerrar_conexiones.grid(
-            row=3,
+            row=5,
             column=0,
-            padx=90,
+            padx=100,
             pady=(10, 0),
             sticky="ew",
         )
 
         ventana.protocol(
             "WM_DELETE_WINDOW",
-            ventana.destroy,
+            self.cerrar_panel_conexiones,
         )
+    def cerrar_panel_conexiones(self) -> None:
+        """
+        Cierra correctamente el subpanel ANS Conexiones.
+        """
+
+        ventana = getattr(
+            self,
+            "ventana_conexiones",
+            None,
+        )
+
+        if (
+            ventana is not None
+            and ventana.winfo_exists()
+        ):
+            try:
+                ventana.grab_release()
+
+            except tk.TclError:
+                pass
+
+            ventana.destroy()
+
+        self.ventana_conexiones = None   
 
     def abrir_panel_redes(self) -> None:
         """
@@ -1116,13 +1153,11 @@ class AplicacionANS:
             state=estado
         )
 
-        self.btn_salida.configure(
-            state=estado
-        )
-
         controles_subpanel = (
             "btn_informe",
             "btn_dashboard",
+            "btn_abrir_informe",
+            "btn_abrir_dashboard",
             "btn_mapa",
             "btn_cerrar_conexiones",
         )
@@ -1548,6 +1583,159 @@ class AplicacionANS:
                 "No fue posible abrir la carpeta de salida.\n\n"
                 f"Detalle: {error}"
             )
+
+    # ==========================================================
+    # APERTURA DIRECTA DE ARCHIVOS DE CONEXIONES
+    # ==========================================================
+
+    def abrir_informe_conexiones(self) -> None:
+        """
+        Abre Informe_ANS_ELITE.xlsx y posiciona Excel
+        directamente en la hoja DATOS_ANS.
+        """
+
+        ruta_informe = (
+            SALIDA_DIR
+            / "Informe_ANS_ELITE.xlsx"
+        )
+
+        self.abrir_archivo_excel_en_hoja(
+            ruta_archivo=ruta_informe,
+            nombre_hoja="DATOS_ANS",
+            descripcion="Informe ANS Conexiones",
+        )
+
+    def abrir_archivo_dashboard_conexiones(self) -> None:
+        """
+        Abre INFORME_ANS.xlsb y posiciona Excel
+        directamente en la hoja DATOS_ANS.
+        """
+
+        ruta_dashboard = (
+            BASE_DIR
+            / "dashboard"
+            / "INFORME_ANS.xlsb"
+        )
+
+        self.abrir_archivo_excel_en_hoja(
+            ruta_archivo=ruta_dashboard,
+            nombre_hoja="DATOS_ANS",
+            descripcion="Dashboard ANS Conexiones",
+        )
+
+    def abrir_archivo_excel_en_hoja(
+        self,
+        ruta_archivo,
+        nombre_hoja: str,
+        descripcion: str,
+    ) -> None:
+        """
+        Abre un archivo de Excel y activa una hoja específica.
+        """
+
+        if not ruta_archivo.exists():
+            self.mostrar_error(
+                f"No se encontró el archivo: {descripcion}.\n\n"
+                f"Ruta esperada:\n{ruta_archivo}"
+            )
+            return
+
+        excel = None
+        com_inicializado = False
+
+        try:
+            pythoncom.CoInitialize()
+            com_inicializado = True
+
+            excel = win32.DispatchEx(
+                "Excel.Application"
+            )
+
+            excel.Visible = True
+            excel.DisplayAlerts = True
+
+            libro = excel.Workbooks.Open(
+                str(
+                    ruta_archivo.resolve()
+                ),
+                UpdateLinks=0,
+                ReadOnly=False,
+            )
+
+            libro.Activate()
+
+            try:
+                hoja = libro.Worksheets(
+                    nombre_hoja
+                )
+
+            except Exception as error:
+                libro.Close(
+                    SaveChanges=False
+                )
+
+                raise RuntimeError(
+                    f"No se encontró la hoja {nombre_hoja} "
+                    f"en {ruta_archivo.name}."
+                ) from error
+
+            hoja.Activate()
+
+            # Posiciona la vista en la primera celda.
+            hoja.Range("A1").Select()
+
+            # Lleva la hoja al inicio visible.
+            excel.ActiveWindow.ScrollRow = 1
+            excel.ActiveWindow.ScrollColumn = 1
+
+            # Maximiza Excel.
+            excel.WindowState = -4137
+
+            # Excel queda visible y bajo control del usuario.
+            excel.Visible = True
+            excel.UserControl = True
+
+            # ======================================================
+            # CERRAR EL SUBPANEL ANTES DE MINIMIZAR
+            # ======================================================
+
+            self.cerrar_panel_conexiones() 
+
+            # Minimiza solamente la ventana principal.
+            self.root.iconify()
+
+            # Lleva Excel al frente.
+            libro.Activate()
+            hoja.Activate()
+            excel.ActiveWindow.Activate()
+
+            self.agregar_mensaje(
+                f"{descripcion} abierto en la hoja "
+                f"{nombre_hoja}.",
+                "correcto",
+            )
+
+        except Exception as error:
+            logger.exception(
+                "No fue posible abrir %s.",
+                descripcion,
+            )
+
+            if excel is not None:
+                try:
+                    excel.Quit()
+
+                except Exception:
+                    pass
+
+            self.mostrar_error(
+                f"No fue posible abrir {descripcion}.\n\n"
+                f"Detalle: {error}"
+            )
+
+        finally:
+            if com_inicializado:
+                pythoncom.CoUninitialize()
 
     # ==========================================================
     # ACTUALIZACIÓN DEL DASHBOARD ANS
