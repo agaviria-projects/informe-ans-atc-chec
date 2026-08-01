@@ -410,7 +410,7 @@ class AplicacionANS:
             row=1,
             column=0,
             columnspan=2,
-            padx=110,
+            padx=180,
             pady=(6, 0),
             sticky="ew",
         )
