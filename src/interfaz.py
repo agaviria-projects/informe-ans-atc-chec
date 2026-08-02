@@ -381,9 +381,9 @@ class AplicacionANS:
             contenedor=contenedor,
             texto="ANS\nCONEXIONES",
             comando=self.abrir_panel_conexiones,
-            color=COLOR_VERDE_EMPRESA_CLARO,
-            color_hover="#A4D65E",
-            color_texto=COLOR_TEXTO,
+            color=COLOR_VERDE_EMPRESA,
+            color_hover=COLOR_PRINCIPAL_HOVER,
+            color_texto=COLOR_BLANCO,
         )
 
         self.btn_modulo_conexiones.grid(
@@ -432,6 +432,9 @@ class AplicacionANS:
     def abrir_panel_conexiones(self) -> None:
         """
         Abre el subpanel operativo de ANS Conexiones.
+
+        La ventana presenta las acciones organizadas por función
+        e incluye el estado y el resultado del proceso.
         """
 
         if self.proceso_activo:
@@ -450,6 +453,33 @@ class AplicacionANS:
             ventana_existente.lift()
             ventana_existente.focus_force()
             return
+
+        # ==========================================================
+        # PALETA VISUAL DEL SUBPANEL
+        # ==========================================================
+
+        color_fondo_modal = "#F4F6F8"
+        color_tarjeta = "#FFFFFF"
+        color_texto_principal = "#1F2937"
+        color_texto_secundario = "#64748B"
+        color_borde_suave = "#D7DEE5"
+
+        color_accion_principal = "#00875A"
+        color_accion_principal_hover = "#006B47"
+
+        color_proceso_secundario = "#0F766E"
+        color_proceso_secundario_hover = "#0B5F59"
+
+        color_consulta = "#475569"
+        color_consulta_hover = "#334155"
+
+        color_cerrar = "#E5E7EB"
+        color_cerrar_hover = "#D1D5DB"
+        color_texto_cerrar = "#334155"
+
+        # ==========================================================
+        # CREACIÓN Y CONFIGURACIÓN DE LA VENTANA
+        # ==========================================================
 
         ventana = tk.Toplevel(
             self.root
@@ -470,30 +500,33 @@ class AplicacionANS:
 
         except tk.TclError:
             logger.warning(
-                "No fue posible cargar el ícono del subpanel Conexiones."
+                "No fue posible cargar el ícono "
+                "del subpanel Conexiones."
             )
 
         ventana.configure(
-            bg=COLOR_FONDO
+            bg=color_fondo_modal
         )
 
-        ancho = 560
-        alto = 520
+        # ==========================================================
+        # MISMO TAMAÑO Y POSICIÓN DE LA VENTANA PRINCIPAL
+        # ==========================================================
+
+        ancho = ANCHO_VENTANA
+        alto = ALTO_VENTANA
 
         self.root.update_idletasks()
 
-        posicion_x = (
-            self.root.winfo_x()
-            + (self.root.winfo_width() - ancho) // 2
-        )
-
-        posicion_y = (
-            self.root.winfo_y()
-            + (self.root.winfo_height() - alto) // 2
-        )
+        posicion_x = self.root.winfo_x()
+        posicion_y = self.root.winfo_y()
 
         ventana.geometry(
             f"{ancho}x{alto}+{posicion_x}+{posicion_y}"
+        )
+
+        ventana.minsize(
+            ancho,
+            alto,
         )
 
         ventana.resizable(
@@ -507,10 +540,14 @@ class AplicacionANS:
 
         ventana.grab_set()
 
+        # ==========================================================
+        # ENCABEZADO
+        # ==========================================================
+
         encabezado = tk.Frame(
             ventana,
             bg=COLOR_VERDE_EMPRESA,
-            height=58,
+            height=82,
         )
 
         encabezado.pack(
@@ -521,152 +558,425 @@ class AplicacionANS:
             False
         )
 
-        tk.Label(
+        contenido_encabezado = tk.Frame(
             encabezado,
+            bg=COLOR_VERDE_EMPRESA,
+        )
+
+        contenido_encabezado.pack(
+            fill="both",
+            expand=True,
+            padx=30,
+        )
+
+        tk.Label(
+            contenido_encabezado,
             text="ANS CONEXIONES",
             bg=COLOR_VERDE_EMPRESA,
             fg=COLOR_BLANCO,
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 17, "bold"),
+            anchor="w",
         ).pack(
-            expand=True
+            fill="x",
+            pady=(16, 0),
         )
 
         tk.Label(
-            ventana,
+            contenido_encabezado,
             text=(
-                "Seleccione la operación que desea ejecutar "
-                "para el proceso de conexiones."
+                "Generación, actualización y consulta "
+                "del informe operativo."
             ),
-            bg=COLOR_FONDO,
-            fg=COLOR_TEXTO_SECUNDARIO,
+            bg=COLOR_VERDE_EMPRESA,
+            fg="#DFF3EA",
             font=("Segoe UI", 9),
+            anchor="w",
         ).pack(
-            pady=(16, 10)
+            fill="x",
+            pady=(2, 14),
         )
 
-        contenedor = tk.Frame(
+        # ==========================================================
+        # CONTENIDO PRINCIPAL
+        # ==========================================================
+
+        contenido = tk.Frame(
             ventana,
-            bg=COLOR_FONDO,
+            bg=color_fondo_modal,
         )
 
-        contenedor.pack(
+        contenido.pack(
             fill="both",
             expand=True,
-            padx=34,
-            pady=(0, 20),
+            padx=28,
+            pady=(14, 18),
         )
 
-        contenedor.columnconfigure(
+        contenido.columnconfigure(
             0,
             weight=1,
         )
 
+        contenido.rowconfigure(
+            3,
+            weight=1,
+        )
+
+        # ==========================================================
+        # ACCIÓN PRINCIPAL
+        # ==========================================================
+
+        tk.Label(
+            contenido,
+            text="Proceso principal",
+            bg=color_fondo_modal,
+            fg=color_texto_principal,
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        ).grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 7),
+        )
+
         self.btn_informe = self.crear_boton(
-            contenedor=contenedor,
+            contenedor=contenido,
             texto="GENERAR INFORME ANS CONEXIONES",
             comando=self.iniciar_generacion_informe,
-            color=COLOR_VERDE_EMPRESA_CLARO,
-            color_hover="#A4D65E",
-            color_texto=COLOR_TEXTO,
+            color=color_accion_principal,
+            color_hover=color_accion_principal_hover,
+            color_texto=COLOR_BLANCO,
         )
 
         self.btn_informe.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(0, 14),
+        )
+
+        # ==========================================================
+        # ACCIONES SECUNDARIAS Y DE CONSULTA
+        # ==========================================================
+
+        tarjeta_acciones = tk.Frame(
+            contenido,
+            bg=color_tarjeta,
+            highlightbackground=color_borde_suave,
+            highlightthickness=1,
+        )
+
+        tarjeta_acciones.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(0, 14),
+        )
+
+        tarjeta_acciones.columnconfigure(
+            (0, 1),
+            weight=1,
+            uniform="acciones_conexiones",
+        )
+
+        tk.Label(
+            tarjeta_acciones,
+            text="Procesamiento complementario",
+            bg=color_tarjeta,
+            fg=color_texto_principal,
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        ).grid(
             row=0,
             column=0,
-            padx=8,
-            pady=4,
+            columnspan=2,
             sticky="ew",
+            padx=16,
+            pady=(13, 7),
         )
 
         self.btn_dashboard = self.crear_boton(
-            contenedor=contenedor,
-            texto="ACTUALIZAR DASHBOARD CONEXIONES",
+            contenedor=tarjeta_acciones,
+            texto="ACTUALIZAR DASHBOARD",
             comando=self.iniciar_actualizacion_dashboard,
-            color="#2874A6",
-            color_hover="#1F618D",
+            color=color_proceso_secundario,
+            color_hover=color_proceso_secundario_hover,
             color_texto=COLOR_BLANCO,
         )
 
         self.btn_dashboard.grid(
             row=1,
             column=0,
-            padx=8,
-            pady=4,
             sticky="ew",
-        )
-
-        self.btn_abrir_informe = self.crear_boton(
-            contenedor=contenedor,
-            texto="ABRIR INFORME ANS CONEXIONES",
-            comando=self.abrir_informe_conexiones,
-            color="#239B56",
-            color_hover="#1E8449",
-            color_texto=COLOR_BLANCO,
-        )
-
-        self.btn_abrir_informe.grid(
-            row=2,
-            column=0,
-            padx=8,
-            pady=4,
-            sticky="ew",
-        )
-
-        self.btn_abrir_dashboard = self.crear_boton(
-            contenedor=contenedor,
-            texto="ABRIR ARCHIVO DASHBOARD CONEXIONES",
-            comando=self.abrir_archivo_dashboard_conexiones,
-            color="#17A589",
-            color_hover="#148F77",
-            color_texto=COLOR_BLANCO,
-        )
-
-        self.btn_abrir_dashboard.grid(
-            row=3,
-            column=0,
-            padx=8,
-            pady=4,
-            sticky="ew",
+            padx=(16, 6),
+            pady=(0, 12),
         )
 
         self.btn_mapa = self.crear_boton(
-            contenedor=contenedor,
-            texto="GENERAR MAPA CONEXIONES",
+            contenedor=tarjeta_acciones,
+            texto="GENERAR MAPA",
             comando=self.generar_mapa_ans,
-            color=COLOR_VERDE_EMPRESA,
-            color_hover=COLOR_PRINCIPAL_HOVER,
+            color=color_proceso_secundario,
+            color_hover=color_proceso_secundario_hover,
             color_texto=COLOR_BLANCO,
         )
 
         self.btn_mapa.grid(
-            row=4,
-            column=0,
-            padx=8,
-            pady=4,
+            row=1,
+            column=1,
             sticky="ew",
+            padx=(6, 16),
+            pady=(0, 12),
         )
 
-        self.btn_cerrar_conexiones = self.crear_boton(
-            contenedor=contenedor,
-            texto="CERRAR",
-            comando=self.cerrar_panel_conexiones,
-            color="#5D6D7E",
-            color_hover="#34495E",
+        ttk.Separator(
+            tarjeta_acciones,
+            orient="horizontal",
+        ).grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=16,
+            pady=(0, 10),
+        )
+
+        tk.Label(
+            tarjeta_acciones,
+            text="Abrir y consultar resultados",
+            bg=color_tarjeta,
+            fg=color_texto_principal,
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        ).grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=16,
+            pady=(0, 7),
+        )
+
+        self.btn_abrir_informe = self.crear_boton(
+            contenedor=tarjeta_acciones,
+            texto="ABRIR INFORME",
+            comando=self.abrir_informe_conexiones,
+            color=color_consulta,
+            color_hover=color_consulta_hover,
             color_texto=COLOR_BLANCO,
         )
 
-        self.btn_cerrar_conexiones.grid(
-            row=5,
+        self.btn_abrir_informe.grid(
+            row=4,
             column=0,
-            padx=100,
-            pady=(10, 0),
             sticky="ew",
+            padx=(16, 6),
+            pady=(0, 14),
         )
+
+        self.btn_abrir_dashboard = self.crear_boton(
+            contenedor=tarjeta_acciones,
+            texto="ABRIR DASHBOARD",
+            comando=self.abrir_archivo_dashboard_conexiones,
+            color=color_consulta,
+            color_hover=color_consulta_hover,
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_abrir_dashboard.grid(
+            row=4,
+            column=1,
+            sticky="ew",
+            padx=(6, 16),
+            pady=(0, 14),
+        )
+
+        # ==========================================================
+        # ESTADO Y RESULTADO DEL PROCESO
+        # ==========================================================
+
+        tarjeta_resultado = tk.Frame(
+            contenido,
+            bg=color_tarjeta,
+            highlightbackground=color_borde_suave,
+            highlightthickness=1,
+        )
+
+        tarjeta_resultado.grid(
+            row=3,
+            column=0,
+            sticky="nsew",
+            pady=(0, 14),
+        )
+
+        tarjeta_resultado.columnconfigure(
+            0,
+            weight=1,
+        )
+
+        tarjeta_resultado.rowconfigure(
+            3,
+            weight=1,
+        )
+
+        tk.Label(
+            tarjeta_resultado,
+            text="Estado y resultado del proceso",
+            bg=color_tarjeta,
+            fg=color_texto_principal,
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        ).grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=16,
+            pady=(13, 4),
+        )
+
+        self.etiqueta_estado_conexiones = tk.Label(
+            tarjeta_resultado,
+            text="Esperando acción del usuario...",
+            bg=color_tarjeta,
+            fg=color_texto_secundario,
+            font=("Segoe UI", 9),
+            anchor="w",
+        )
+
+        self.etiqueta_estado_conexiones.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=16,
+            pady=(0, 6),
+        )
+
+        self.barra_progreso_conexiones = ttk.Progressbar(
+            tarjeta_resultado,
+            orient="horizontal",
+            mode="determinate",
+            maximum=100,
+            style="ANS.Horizontal.TProgressbar",
+        )
+
+        self.barra_progreso_conexiones.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            padx=16,
+            pady=(0, 10),
+        )
+
+        self.area_mensajes_conexiones = scrolledtext.ScrolledText(
+            tarjeta_resultado,
+            wrap=tk.WORD,
+            font=("Consolas", 9),
+            bg="#F8FAFC",
+            fg=color_texto_principal,
+            insertbackground=color_texto_principal,
+            relief="solid",
+            borderwidth=1,
+            height=5,
+            state="disabled",
+        )
+
+        self.area_mensajes_conexiones.grid(
+            row=3,
+            column=0,
+            sticky="nsew",
+            padx=16,
+            pady=(0, 14),
+        )
+
+        self.area_mensajes_conexiones.tag_config(
+            "info",
+            foreground="#2563A6",
+        )
+
+        self.area_mensajes_conexiones.tag_config(
+            "correcto",
+            foreground=color_accion_principal,
+        )
+
+        self.area_mensajes_conexiones.tag_config(
+            "advertencia",
+            foreground="#B9770E",
+        )
+
+        self.area_mensajes_conexiones.tag_config(
+            "error",
+            foreground="#C0392B",
+        )
+
+        hora = datetime.now().strftime(
+            "%H:%M:%S"
+        )
+
+        self.area_mensajes_conexiones.configure(
+            state="normal"
+        )
+
+        self.area_mensajes_conexiones.insert(
+            tk.END,
+            f"[{hora}] Panel ANS Conexiones preparado.\n",
+            "correcto",
+        )
+
+        self.area_mensajes_conexiones.configure(
+            state="disabled"
+        )
+
+        # ==========================================================
+        # BOTÓN CERRAR
+        # ==========================================================
+
+        frame_cierre = tk.Frame(
+            contenido,
+            bg=color_fondo_modal,
+            height=48,
+        )
+
+        frame_cierre.grid(
+            row=4,
+            column=0,
+            sticky="ew",
+            pady=(0, 4),
+        )
+
+        frame_cierre.grid_propagate(
+            False
+        )
+
+        frame_cierre.columnconfigure(
+            0,
+            weight=1,
+        )
+
+        self.btn_cerrar_conexiones = self.crear_boton(
+            contenedor=frame_cierre,
+            texto="CERRAR",
+            comando=self.cerrar_panel_conexiones,
+            color=color_cerrar,
+            color_hover=color_cerrar_hover,
+            color_texto=color_texto_cerrar,
+        )
+
+        self.btn_cerrar_conexiones.grid(
+            row=0,
+            column=0,
+            sticky="e",
+            padx=(0, 2),
+            pady=2,
+            ipadx=24,
+        )
+        
 
         ventana.protocol(
             "WM_DELETE_WINDOW",
             self.cerrar_panel_conexiones,
         )
+
     def cerrar_panel_conexiones(self) -> None:
         """
         Cierra correctamente el subpanel ANS Conexiones.
@@ -1119,20 +1429,26 @@ class AplicacionANS:
         etiqueta: str = "info",
     ) -> None:
         """
-        Agrega un mensaje al área de resultados.
+        Agrega un mensaje al área principal y, cuando está abierto,
+        al panel visual de ANS Conexiones.
         """
 
         hora = datetime.now().strftime(
             "%H:%M:%S"
         )
 
+        texto_mensaje = (
+            f"[{hora}] {mensaje}\n"
+        )
+
+        # Área principal.
         self.area_mensajes.configure(
             state="normal"
         )
 
         self.area_mensajes.insert(
             tk.END,
-            f"[{hora}] {mensaje}\n",
+            texto_mensaje,
             etiqueta,
         )
 
@@ -1144,17 +1460,60 @@ class AplicacionANS:
             tk.END
         )
 
+        # Área del subpanel ANS Conexiones.
+        area_conexiones = getattr(
+            self,
+            "area_mensajes_conexiones",
+            None,
+        )
+
+        if (
+            area_conexiones is not None
+            and area_conexiones.winfo_exists()
+        ):
+            area_conexiones.configure(
+                state="normal"
+            )
+
+            area_conexiones.insert(
+                tk.END,
+                texto_mensaje,
+                etiqueta,
+            )
+
+            area_conexiones.configure(
+                state="disabled"
+            )
+
+            area_conexiones.see(
+                tk.END
+            )
+
     def cambiar_estado(
         self,
         mensaje: str,
     ) -> None:
         """
-        Actualiza el estado inferior.
+        Actualiza el estado inferior y el estado del subpanel.
         """
 
         self.estado.configure(
             text=mensaje
         )
+
+        estado_conexiones = getattr(
+            self,
+            "etiqueta_estado_conexiones",
+            None,
+        )
+
+        if (
+            estado_conexiones is not None
+            and estado_conexiones.winfo_exists()
+        ):
+            estado_conexiones.configure(
+                text=mensaje
+            )
 
     def cambiar_etiqueta_progreso(
         self,
@@ -1223,7 +1582,8 @@ class AplicacionANS:
         mensaje_log: str,
     ) -> None:
         """
-        Prepara visualmente un proceso.
+        Prepara visualmente un proceso en la ventana principal
+        y en el panel ANS Conexiones.
         """
 
         self.barra_progreso.configure(
@@ -1234,6 +1594,25 @@ class AplicacionANS:
         self.barra_progreso.start(
             15
         )
+
+        barra_conexiones = getattr(
+            self,
+            "barra_progreso_conexiones",
+            None,
+        )
+
+        if (
+            barra_conexiones is not None
+            and barra_conexiones.winfo_exists()
+        ):
+            barra_conexiones.configure(
+                mode="indeterminate",
+                value=0,
+            )
+
+            barra_conexiones.start(
+                15
+            )
 
         self.cambiar_estado(
             estado
@@ -1250,7 +1629,7 @@ class AplicacionANS:
 
     def finalizar_proceso(self) -> None:
         """
-        Restablece la interfaz al finalizar.
+        Restablece la interfaz al finalizar un proceso.
         """
 
         self.barra_progreso.stop()
@@ -1259,6 +1638,23 @@ class AplicacionANS:
             mode="determinate",
             value=0,
         )
+
+        barra_conexiones = getattr(
+            self,
+            "barra_progreso_conexiones",
+            None,
+        )
+
+        if (
+            barra_conexiones is not None
+            and barra_conexiones.winfo_exists()
+        ):
+            barra_conexiones.stop()
+
+            barra_conexiones.configure(
+                mode="determinate",
+                value=0,
+            )
 
         self.bloquear_botones(
             False
