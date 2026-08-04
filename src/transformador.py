@@ -19,6 +19,7 @@ COLUMNAS_ORIGEN_REQUERIDAS = [
     "MUNICIPIO",
     "DESC_MUNICIPIO",
     "REGION_ORIGEN",
+    "PDA_NUMERO",
     "OBSERVACION",
 ]
 
@@ -50,6 +51,7 @@ ORDEN_COLUMNAS_SALIDA = [
     "MUNICIPIO",
     "DESC_MUNICIPIO",
     "REGION_ORIGEN",
+    "PDA_NUMERO",
     "TIPO",
     "DIAS_PACTADOS",
     "FECHA_LIMITE_ANS",
@@ -180,6 +182,7 @@ def limpiar_columnas_texto(
         "PROPIETARIO",
         "DESC_MUNICIPIO",
         "REGION_ORIGEN",
+        "PDA_NUMERO",
         "OBSERVACION",
     ]
 

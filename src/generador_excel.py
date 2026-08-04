@@ -49,21 +49,22 @@ COLOR_TEXTO_PENDIENTE = "FFFFFF"
 
 
 ANCHOS_COLUMNAS = {
-    "A": 16,   # ID_ORDEN
-    "B": 15,   # FECHA_ORDEN
-    "C": 45,   # DIRECCION
-    "D": 33,   # PROPIETARIO
-    "E": 10,   # ZONA
-    "F": 15,   # MUNICIPIO
-    "G": 24,   # DESC_MUNICIPIO
-    "H": 17,   # REGION_ORIGEN
-    "I": 18,   # TIPO
-    "J": 16,   # DIAS_PACTADOS
-    "K": 20,   # FECHA_LIMITE_ANS
-    "L": 22,   # DIAS_TRANSCURRIDOS
-    "M": 18,   # DIAS_RESTANTES
-    "N": 25,   # ESTADO
-    "O": 110,  # OBSERVACION
+    "A": 16,
+    "B": 15,
+    "C": 45,
+    "D": 33,
+    "E": 10,
+    "F": 15,
+    "G": 24,
+    "H": 17,
+    "I": 14,   # PDA_NUMERO
+    "J": 18,   # TIPO
+    "K": 16,   # DIAS_PACTADOS
+    "L": 20,   # FECHA_LIMITE_ANS
+    "M": 22,   # DIAS_TRANSCURRIDOS
+    "N": 18,   # DIAS_RESTANTES
+    "O": 25,   # ESTADO
+    "P": 110,  # OBSERVACION
 }
 
 
@@ -232,11 +233,29 @@ def aplicar_diseno_hoja_datos(
             column=6,
         ).number_format = "@"
 
-        # FECHA_LIMITE_ANS ahora está en K.
+        # PDA_NUMERO como texto.
         hoja.cell(
             row=fila,
-            column=11,
+            column=9,
+        ).number_format = "@"
+
+        # FECHA_LIMITE_ANS ahora está en L.
+        hoja.cell(
+            row=fila,
+            column=12,
         ).number_format = "dd/mm/yyyy"
+
+        # DIAS_TRANSCURRIDOS como número entero.
+        hoja.cell(
+            row=fila,
+            column=13,
+        ).number_format = "0"
+
+        # DIAS_RESTANTES como número entero.
+        hoja.cell(
+            row=fila,
+            column=14,
+        ).number_format = "0"
 
         for columna in range(
             1,
@@ -250,23 +269,22 @@ def aplicar_diseno_hoja_datos(
 
             # Dirección y propietario.
             if columna in {
-                    3,
-                    4,
-                }:
-                    celda.alignment = Alignment(
-                        horizontal="left",
-                        vertical="center",
-                        wrap_text=False,
-                    )
+                3,
+                4,
+            }:
+                celda.alignment = Alignment(
+                    horizontal="left",
+                    vertical="center",
+                    wrap_text=False,
+                )
 
-            # Observación.
-            elif columna == 15:
+            # Observación ahora está en P = 16.
+            elif columna == 16:
                 celda.alignment = Alignment(
                     horizontal="left",
                     vertical="top",
                     wrap_text=True,
                 )
-            
 
             # Columnas centradas.
             elif columna in {
@@ -274,12 +292,13 @@ def aplicar_diseno_hoja_datos(
                 5,   # ZONA
                 6,   # MUNICIPIO
                 8,   # REGION_ORIGEN
-                9,   # TIPO
-                10,  # DIAS_PACTADOS
-                11,  # FECHA_LIMITE_ANS
-                12,  # DIAS_TRANSCURRIDOS
-                13,  # DIAS_RESTANTES
-                14,  # ESTADO
+                9,   # PDA_NUMERO
+                10,  # TIPO
+                11,  # DIAS_PACTADOS
+                12,  # FECHA_LIMITE_ANS
+                13,  # DIAS_TRANSCURRIDOS
+                14,  # DIAS_RESTANTES
+                15,  # ESTADO
             }:
                 celda.alignment = Alignment(
                     horizontal="center",
@@ -294,7 +313,8 @@ def aplicar_diseno_hoja_datos(
                     wrap_text=False,
                 )
 
-        hoja.row_dimensions[fila].height = 22
+        hoja.row_dimensions[fila].height = 36
+
 
     # ======================================================
     # COLORES DIRECTOS PARA ESTADO
@@ -305,10 +325,10 @@ def aplicar_diseno_hoja_datos(
         ultima_fila + 1,
     ):
 
-        # ESTADO ahora está en la columna N = 14.
+        # ESTADO ahora está en O = 15.
         celda_estado = hoja.cell(
             row=fila,
-            column=14,
+            column=15,
         )
 
         estado = str(
