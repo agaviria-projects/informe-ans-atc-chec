@@ -33,6 +33,28 @@ NOMBRE_TABLA_DESTINO = "DATOS"
 
 
 # ==========================================================
+# COLORES Y FORMATO DE ESTADOS EN DATOS_ANS
+# ==========================================================
+
+COLOR_ESTADOS = {
+    "VENCIDO": (255, 31, 31),
+    "ALERTA": (255, 212, 38),
+    "A TIEMPO": (139, 207, 74),
+    "INMEDIATO": (243, 156, 18),
+    "HV": (52, 152, 219),
+    "FACTIBILIDAD": (23, 165, 137),
+    "SIN FECHA": (100, 118, 135),
+    "PENDIENTE CONFIGURACIÓN": (100, 118, 135),
+}
+
+
+def color_excel(rojo: int, verde: int, azul: int) -> int:
+    """Convierte RGB al valor entero utilizado por Excel COM."""
+
+    return rojo + (verde * 256) + (azul * 65536)
+
+
+# ==========================================================
 # COLUMNAS QUE SE TRANSFIEREN
 # ==========================================================
 
@@ -45,6 +67,7 @@ COLUMNAS_DASHBOARD = [
     "MUNICIPIO",
     "DESC_MUNICIPIO",
     "REGION_ORIGEN",
+    "PDA_NUMERO",
     "TIPO",
     "DIAS_PACTADOS",
     "FECHA_LIMITE_ANS",
@@ -88,7 +111,7 @@ def validar_columnas(
     dataframe: pd.DataFrame,
 ) -> None:
     """
-    Valida que el informe tenga las 15 columnas requeridas.
+    Valida que el informe tenga las 16 columnas requeridas.
     """
 
     columnas_faltantes = [
@@ -266,6 +289,172 @@ def construir_matriz_excel(
     return tuple(
         registros
     )
+
+
+# ==========================================================
+# FORMATO DE LA HOJA DATOS_ANS
+# ==========================================================
+
+def aplicar_formato_datos_ans(
+    hoja: Any,
+    cantidad_registros: int,
+) -> None:
+    """
+    Aplica formatos sobre las 16 columnas de DATOS_ANS.
+
+    No modifica el diseño de la hoja DASHBOARD.
+    """
+
+    if cantidad_registros <= 0:
+        return
+
+    ultima_fila = cantidad_registros + 1
+
+    # Anchos de columnas.
+    anchos = {
+        1: 16,   # ID_ORDEN
+        2: 15,   # FECHA_ORDEN
+        3: 45,   # DIRECCION
+        4: 33,   # PROPIETARIO
+        5: 10,   # ZONA
+        6: 15,   # MUNICIPIO
+        7: 24,   # DESC_MUNICIPIO
+        8: 17,   # REGION_ORIGEN
+        9: 24,   # PDA_NUMERO
+        10: 18,  # TIPO
+        11: 16,  # DIAS_PACTADOS
+        12: 20,  # FECHA_LIMITE_ANS
+        13: 22,  # DIAS_TRANSCURRIDOS
+        14: 18,  # DIAS_RESTANTES
+        15: 25,  # ESTADO
+        16: 110, # OBSERVACION
+    }
+
+    for numero_columna, ancho in anchos.items():
+        hoja.Columns(numero_columna).ColumnWidth = ancho
+
+    # Formatos numéricos y de fecha.
+    hoja.Range(
+        hoja.Cells(2, 1),
+        hoja.Cells(ultima_fila, 1),
+    ).NumberFormat = "@"
+
+    hoja.Range(
+        hoja.Cells(2, 2),
+        hoja.Cells(ultima_fila, 2),
+    ).NumberFormat = "dd/mm/yyyy"
+
+    hoja.Range(
+        hoja.Cells(2, 6),
+        hoja.Cells(ultima_fila, 6),
+    ).NumberFormat = "@"
+
+    hoja.Range(
+        hoja.Cells(2, 9),
+        hoja.Cells(ultima_fila, 9),
+    ).NumberFormat = "@"
+
+    hoja.Range(
+        hoja.Cells(2, 11),
+        hoja.Cells(ultima_fila, 11),
+    ).NumberFormat = "0"
+
+    hoja.Range(
+        hoja.Cells(2, 12),
+        hoja.Cells(ultima_fila, 12),
+    ).NumberFormat = "dd/mm/yyyy"
+
+    hoja.Range(
+        hoja.Cells(2, 13),
+        hoja.Cells(ultima_fila, 14),
+    ).NumberFormat = "0"
+
+    # Alineación general.
+    rango_datos = hoja.Range(
+        hoja.Cells(2, 1),
+        hoja.Cells(ultima_fila, 16),
+    )
+
+    rango_datos.VerticalAlignment = -4108
+    rango_datos.WrapText = False
+
+    # Columnas centradas.
+    for numero_columna in (
+        2, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15
+    ):
+        rango = hoja.Range(
+            hoja.Cells(2, numero_columna),
+            hoja.Cells(ultima_fila, numero_columna),
+        )
+        rango.HorizontalAlignment = -4108
+        rango.VerticalAlignment = -4108
+
+    # Observación en P.
+    rango_observacion = hoja.Range(
+        hoja.Cells(2, 16),
+        hoja.Cells(ultima_fila, 16),
+    )
+
+    rango_observacion.WrapText = True
+    rango_observacion.HorizontalAlignment = -4131
+    rango_observacion.VerticalAlignment = -4160
+
+    hoja.Rows(
+        f"2:{ultima_fila}"
+    ).RowHeight = 36
+
+    # Colores directos sobre ESTADO en O.
+    rango_estado = hoja.Range(
+        hoja.Cells(2, 15),
+        hoja.Cells(ultima_fila, 15),
+    )
+
+    rango_estado.FormatConditions.Delete()
+    rango_estado.Interior.Pattern = -4142
+    rango_estado.Font.Bold = True
+    rango_estado.Font.Color = color_excel(0, 0, 0)
+
+    for numero_fila in range(
+        2,
+        ultima_fila + 1,
+    ):
+        celda = hoja.Cells(
+            numero_fila,
+            15,
+        )
+
+        estado = str(
+            celda.Value or ""
+        ).strip().upper()
+
+        color = COLOR_ESTADOS.get(
+            estado
+        )
+
+        if color is None:
+            continue
+
+        celda.Interior.Color = color_excel(
+            *color
+        )
+
+        if estado in {
+            "HV",
+            "FACTIBILIDAD",
+            "SIN FECHA",
+            "PENDIENTE CONFIGURACIÓN",
+        }:
+            celda.Font.Color = color_excel(
+                255,
+                255,
+                255,
+            )
+        else:
+            celda.Font.Color = color_excel(
+                0,
+                0,
+                0,
+            )
 
 
 # ==========================================================
@@ -523,73 +712,10 @@ def actualizar_dashboard(
 
             rango_destino.Value = matriz
 
-            # FECHA_ORDEN.
-            hoja.Range(
-                hoja.Cells(
-                    2,
-                    2,
-                ),
-                hoja.Cells(
-                    cantidad_registros + 1,
-                    2,
-                ),
-            ).NumberFormat = "dd/mm/yyyy"
-
-            # FECHA_LIMITE_ANS.
-            hoja.Range(
-                hoja.Cells(
-                    2,
-                    11,
-                ),
-                hoja.Cells(
-                    cantidad_registros + 1,
-                    11,
-                ),
-            ).NumberFormat = "dd/mm/yyyy"
-
-            # ID_ORDEN como texto.
-            hoja.Range(
-                hoja.Cells(
-                    2,
-                    1,
-                ),
-                hoja.Cells(
-                    cantidad_registros + 1,
-                    1,
-                ),
-            ).NumberFormat = "@"
-
-            # MUNICIPIO como texto.
-            hoja.Range(
-                hoja.Cells(
-                    2,
-                    6,
-                ),
-                hoja.Cells(
-                    cantidad_registros + 1,
-                    6,
-                ),
-            ).NumberFormat = "@"
-
-            # OBSERVACION contenida dentro de su celda.
-            rango_observacion = hoja.Range(
-                hoja.Cells(
-                    2,
-                    15,
-                ),
-                hoja.Cells(
-                    cantidad_registros + 1,
-                    15,
-                ),
+            aplicar_formato_datos_ans(
+                hoja=hoja,
+                cantidad_registros=cantidad_registros,
             )
-
-            rango_observacion.WrapText = True
-            rango_observacion.HorizontalAlignment = -4131
-            rango_observacion.VerticalAlignment = -4160
-
-            hoja.Rows(
-                f"2:{cantidad_registros + 1}"
-            ).RowHeight = 30
 
         # --------------------------------------------------
         # ACTUALIZAR DASHBOARD
