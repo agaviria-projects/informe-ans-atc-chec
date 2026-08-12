@@ -44,6 +44,7 @@ from src.config import (
     VERSION_APLICACION,
 )
 from src.generador_excel import ErrorGeneracionExcel
+from src.generador_excel_redes import generar_informe_ans_redes
 from src.generador_mapa import (
     ErrorGeneracionMapa,
     generar_mapa_desde_informe,
@@ -428,7 +429,7 @@ class AplicacionANS:
             pady=(6, 0),
             sticky="ew",
         )
-
+    
     def abrir_panel_conexiones(self) -> None:
         """
         Abre el subpanel operativo de ANS Conexiones.
@@ -1002,9 +1003,18 @@ class AplicacionANS:
 
         self.ventana_conexiones = None   
 
+    # ----------------------------------------------------------------------
+    # crea la ventana secundaria que aparece cuando haces clic en ANS REDES
+    # ----------------------------------------------------------------------
     def abrir_panel_redes(self) -> None:
         """
-        Abre el subpanel reservado para el futuro módulo ANS Redes.
+        Abre el subpanel operativo de ANS Redes.
+
+        En esta fase quedan habilitados:
+        - GENERAR INFORME ANS REDES
+        - ABRIR INFORME
+
+        Dashboard y mapa permanecen visibles pero en STANDBY.
         """
 
         if self.proceso_activo:
@@ -1024,6 +1034,36 @@ class AplicacionANS:
             ventana_existente.focus_force()
             return
 
+        # ==========================================================
+        # PALETA VISUAL DEL SUBPANEL REDES
+        # ==========================================================
+
+        color_fondo_modal = "#F4F6F8"
+        color_tarjeta = "#FFFFFF"
+        color_texto_principal = "#1F2937"
+        color_texto_secundario = "#64748B"
+        color_borde_suave = "#D7DEE5"
+
+        # Encabezado gris solicitado para diferenciar ANS Redes.
+        color_encabezado_redes = "#7F8C8D"
+
+        color_accion_principal = "#00875A"
+        color_accion_principal_hover = "#006B47"
+
+        color_consulta = "#475569"
+        color_consulta_hover = "#334155"
+
+        color_standby = "#A7B0B5"
+        color_texto_standby = "#F8FAFC"
+
+        color_cerrar = "#E5E7EB"
+        color_cerrar_hover = "#D1D5DB"
+        color_texto_cerrar = "#334155"
+
+        # ==========================================================
+        # CREACIÓN Y CONFIGURACIÓN DE LA VENTANA
+        # ==========================================================
+
         ventana = tk.Toplevel(
             self.root
         )
@@ -1033,6 +1073,7 @@ class AplicacionANS:
         ventana.title(
             "ANS Redes"
         )
+
         try:
             ventana.iconbitmap(
                 str(
@@ -1042,30 +1083,30 @@ class AplicacionANS:
 
         except tk.TclError:
             logger.warning(
-                "No fue posible cargar el ícono del subpanel Redes."
+                "No fue posible cargar el ícono "
+                "del subpanel Redes."
             )
-            
+
         ventana.configure(
-            bg=COLOR_FONDO
+            bg=color_fondo_modal
         )
 
-        ancho = 500
-        alto = 300
+        # Mismo tamaño y posición del panel ANS Conexiones.
+        ancho = ANCHO_VENTANA
+        alto = ALTO_VENTANA
 
         self.root.update_idletasks()
 
-        posicion_x = (
-            self.root.winfo_x()
-            + (self.root.winfo_width() - ancho) // 2
-        )
-
-        posicion_y = (
-            self.root.winfo_y()
-            + (self.root.winfo_height() - alto) // 2
-        )
+        posicion_x = self.root.winfo_x()
+        posicion_y = self.root.winfo_y()
 
         ventana.geometry(
             f"{ancho}x{alto}+{posicion_x}+{posicion_y}"
+        )
+
+        ventana.minsize(
+            ancho,
+            alto,
         )
 
         ventana.resizable(
@@ -1079,10 +1120,14 @@ class AplicacionANS:
 
         ventana.grab_set()
 
+        # ==========================================================
+        # ENCABEZADO GRIS
+        # ==========================================================
+
         encabezado = tk.Frame(
             ventana,
-            bg="#7F8C8D",
-            height=58,
+            bg=color_encabezado_redes,
+            height=82,
         )
 
         encabezado.pack(
@@ -1093,59 +1138,456 @@ class AplicacionANS:
             False
         )
 
-        tk.Label(
+        contenido_encabezado = tk.Frame(
             encabezado,
-            text="ANS REDES",
-            bg="#7F8C8D",
-            fg=COLOR_BLANCO,
-            font=("Segoe UI", 16, "bold"),
-        ).pack(
-            expand=True
+            bg=color_encabezado_redes,
         )
 
-        tk.Label(
-            ventana,
-            text=(
-                "Módulo reservado para el próximo desarrollo.\n\n"
-                "Las reglas de negocio, el informe, el mapa y el "
-                "dashboard se habilitarán cuando sean definidos."
-            ),
-            bg=COLOR_FONDO,
-            fg=COLOR_TEXTO,
-            font=("Segoe UI", 10),
-            justify="center",
-            wraplength=410,
-        ).pack(
+        contenido_encabezado.pack(
+            fill="both",
             expand=True,
             padx=30,
-            pady=24,
         )
 
-        boton_cerrar = tk.Button(
-            ventana,
-            text="CERRAR",
-            command=ventana.destroy,
-            bg="#5D6D7E",
+        tk.Label(
+            contenido_encabezado,
+            text="ANS REDES",
+            bg=color_encabezado_redes,
             fg=COLOR_BLANCO,
-            activebackground="#34495E",
-            activeforeground=COLOR_BLANCO,
-            font=("Segoe UI", 10, "bold"),
-            relief="ridge",
-            borderwidth=3,
-            cursor="hand2",
-            height=2,
+            font=("Segoe UI", 17, "bold"),
+            anchor="w",
+        ).pack(
+            fill="x",
+            pady=(16, 0),
         )
 
-        boton_cerrar.pack(
+        tk.Label(
+            contenido_encabezado,
+            text="Generación, actualización y consulta del informe operativo.",
+            bg=color_encabezado_redes,
+            fg="#F2F4F4",
+            font=("Segoe UI", 9),
+            anchor="w",
+        ).pack(
             fill="x",
-            padx=120,
-            pady=(0, 24),
+            pady=(2, 14),
+        )
+        # ==========================================================
+        # CONTENIDO PRINCIPAL
+        # ==========================================================
+
+        contenido = tk.Frame(
+            ventana,
+            bg=color_fondo_modal,
+        )
+
+        contenido.pack(
+            fill="both",
+            expand=True,
+            padx=28,
+            pady=(14, 18),
+        )
+
+        contenido.columnconfigure(
+            0,
+            weight=1,
+        )
+
+        contenido.rowconfigure(
+            3,
+            weight=1,
+        )
+
+        # ==========================================================
+        # ACCIÓN PRINCIPAL
+        # ==========================================================
+
+        tk.Label(
+            contenido,
+            text="Proceso principal",
+            bg=color_fondo_modal,
+            fg=color_texto_principal,
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        ).grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            pady=(0, 7),
+        )
+
+        self.btn_informe_redes = self.crear_boton(
+            contenedor=contenido,
+            texto="GENERAR INFORME ANS REDES",
+            comando=self.iniciar_generacion_informe_redes,
+            color=color_accion_principal,
+            color_hover=color_accion_principal_hover,
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_informe_redes.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(0, 14),
+        )
+
+        # ==========================================================
+        # ACCIONES COMPLEMENTARIAS / CONSULTA
+        # ==========================================================
+
+        tarjeta_acciones = tk.Frame(
+            contenido,
+            bg=color_tarjeta,
+            highlightbackground=color_borde_suave,
+            highlightthickness=1,
+        )
+
+        tarjeta_acciones.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            pady=(0, 14),
+        )
+
+        tarjeta_acciones.columnconfigure(
+            (0, 1),
+            weight=1,
+            uniform="acciones_redes",
+        )
+
+        tk.Label(
+            tarjeta_acciones,
+            text="Procesamiento complementario",
+            bg=color_tarjeta,
+            fg=color_texto_principal,
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        ).grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=16,
+            pady=(13, 7),
+        )
+
+        self.btn_dashboard_redes = self.crear_boton(
+            contenedor=tarjeta_acciones,
+            texto="ACTUALIZAR DASHBOARD",
+            comando=lambda: None,
+            color=color_standby,
+            color_hover=color_standby,
+            color_texto=color_texto_standby,
+        )
+
+        self.btn_dashboard_redes.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=(16, 6),
+            pady=(0, 12),
+        )
+
+        self.btn_dashboard_redes.configure(
+            state=tk.DISABLED
+        )
+
+        self.btn_mapa_redes = self.crear_boton(
+            contenedor=tarjeta_acciones,
+            texto="GENERAR MAPA",
+            comando=lambda: None,
+            color=color_standby,
+            color_hover=color_standby,
+            color_texto=color_texto_standby,
+        )
+
+        self.btn_mapa_redes.grid(
+            row=1,
+            column=1,
+            sticky="ew",
+            padx=(6, 16),
+            pady=(0, 12),
+        )
+
+        self.btn_mapa_redes.configure(
+            state=tk.DISABLED
+        )
+
+        ttk.Separator(
+            tarjeta_acciones,
+            orient="horizontal",
+        ).grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=16,
+            pady=(0, 10),
+        )
+
+        tk.Label(
+            tarjeta_acciones,
+            text="Abrir y consultar resultados",
+            bg=color_tarjeta,
+            fg=color_texto_principal,
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        ).grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=16,
+            pady=(0, 7),
+        )
+
+        self.btn_abrir_informe_redes = self.crear_boton(
+            contenedor=tarjeta_acciones,
+            texto="ABRIR INFORME",
+            comando=self.abrir_informe_redes,
+            color=color_consulta,
+            color_hover=color_consulta_hover,
+            color_texto=COLOR_BLANCO,
+        )
+
+        self.btn_abrir_informe_redes.grid(
+            row=4,
+            column=0,
+            sticky="ew",
+            padx=(16, 6),
+            pady=(0, 14),
+        )
+
+        self.btn_abrir_dashboard_redes = self.crear_boton(
+            contenedor=tarjeta_acciones,
+            texto="ABRIR DASHBOARD",
+            comando=lambda: None,
+            color=color_standby,
+            color_hover=color_standby,
+            color_texto=color_texto_standby,
+        )
+
+        self.btn_abrir_dashboard_redes.grid(
+            row=4,
+            column=1,
+            sticky="ew",
+            padx=(6, 16),
+            pady=(0, 14),
+        )
+
+        self.btn_abrir_dashboard_redes.configure(
+            state=tk.DISABLED
+        )
+
+        # ==========================================================
+        # ESTADO Y RESULTADO
+        # ==========================================================
+
+        tarjeta_resultado = tk.Frame(
+            contenido,
+            bg=color_tarjeta,
+            highlightbackground=color_borde_suave,
+            highlightthickness=1,
+        )
+
+        tarjeta_resultado.grid(
+            row=3,
+            column=0,
+            sticky="nsew",
+            pady=(0, 14),
+        )
+
+        tarjeta_resultado.columnconfigure(
+            0,
+            weight=1,
+        )
+
+        tarjeta_resultado.rowconfigure(
+            3,
+            weight=1,
+        )
+
+        tk.Label(
+            tarjeta_resultado,
+            text="Estado y resultado del proceso",
+            bg=color_tarjeta,
+            fg=color_texto_principal,
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        ).grid(
+            row=0,
+            column=0,
+            sticky="ew",
+            padx=16,
+            pady=(13, 4),
+        )
+
+        self.etiqueta_estado_redes = tk.Label(
+            tarjeta_resultado,
+            text="Esperando acción del usuario...",
+            bg=color_tarjeta,
+            fg=color_texto_secundario,
+            font=("Segoe UI", 9),
+            anchor="w",
+        )
+
+        self.etiqueta_estado_redes.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            padx=16,
+            pady=(0, 6),
+        )
+
+        self.barra_progreso_redes = ttk.Progressbar(
+            tarjeta_resultado,
+            orient="horizontal",
+            mode="determinate",
+            maximum=100,
+            style="ANS.Horizontal.TProgressbar",
+        )
+
+        self.barra_progreso_redes.grid(
+            row=2,
+            column=0,
+            sticky="ew",
+            padx=16,
+            pady=(0, 10),
+        )
+
+        self.area_mensajes_redes = scrolledtext.ScrolledText(
+            tarjeta_resultado,
+            wrap=tk.WORD,
+            font=("Consolas", 9),
+            bg="#F8FAFC",
+            fg=color_texto_principal,
+            insertbackground=color_texto_principal,
+            relief="solid",
+            borderwidth=1,
+            height=5,
+            state="disabled",
+        )
+
+        self.area_mensajes_redes.grid(
+            row=3,
+            column=0,
+            sticky="nsew",
+            padx=16,
+            pady=(0, 14),
+        )
+
+        self.area_mensajes_redes.tag_config(
+            "info",
+            foreground="#2563A6",
+        )
+
+        self.area_mensajes_redes.tag_config(
+            "correcto",
+            foreground=color_accion_principal,
+        )
+
+        self.area_mensajes_redes.tag_config(
+            "advertencia",
+            foreground="#B9770E",
+        )
+
+        self.area_mensajes_redes.tag_config(
+            "error",
+            foreground="#C0392B",
+        )
+
+        hora = datetime.now().strftime(
+            "%H:%M:%S"
+        )
+
+        self.area_mensajes_redes.configure(
+            state="normal"
+        )
+
+        self.area_mensajes_redes.insert(
+            tk.END,
+            f"[{hora}] Panel ANS Redes preparado.\n",
+            "correcto",
+        )
+
+        self.area_mensajes_redes.configure(
+            state="disabled"
+        )
+
+        # ==========================================================
+        # BOTÓN CERRAR
+        # ==========================================================
+
+        frame_cierre = tk.Frame(
+            contenido,
+            bg=color_fondo_modal,
+            height=48,
+        )
+
+        frame_cierre.grid(
+            row=4,
+            column=0,
+            sticky="ew",
+            pady=(0, 4),
+        )
+
+        frame_cierre.grid_propagate(
+            False
+        )
+
+        frame_cierre.columnconfigure(
+            0,
+            weight=1,
+        )
+
+        self.btn_cerrar_redes = self.crear_boton(
+            contenedor=frame_cierre,
+            texto="CERRAR",
+            comando=self.cerrar_panel_redes,
+            color=color_cerrar,
+            color_hover=color_cerrar_hover,
+            color_texto=color_texto_cerrar,
+        )
+
+        self.btn_cerrar_redes.grid(
+            row=0,
+            column=0,
+            sticky="e",
+            padx=(0, 2),
+            pady=2,
+            ipadx=24,
         )
 
         ventana.protocol(
             "WM_DELETE_WINDOW",
-            ventana.destroy,
+            self.cerrar_panel_redes,
         )
+
+    def cerrar_panel_redes(self) -> None:
+        """
+        Cierra correctamente el subpanel ANS Redes.
+        """
+
+        ventana = getattr(
+            self,
+            "ventana_redes",
+            None,
+        )
+
+        if (
+            ventana is not None
+            and ventana.winfo_exists()
+        ):
+            try:
+                ventana.grab_release()
+
+            except tk.TclError:
+                pass
+
+            ventana.destroy()
+
+        self.ventana_redes = None
 
     def crear_boton(
         self,
@@ -1429,8 +1871,7 @@ class AplicacionANS:
         etiqueta: str = "info",
     ) -> None:
         """
-        Agrega un mensaje al área principal y, cuando está abierto,
-        al panel visual de ANS Conexiones.
+        Agrega un mensaje al área principal y al subpanel que esté abierto.
         """
 
         hora = datetime.now().strftime(
@@ -1460,60 +1901,68 @@ class AplicacionANS:
             tk.END
         )
 
-        # Área del subpanel ANS Conexiones.
-        area_conexiones = getattr(
-            self,
+        # Áreas de los subpaneles.
+        for nombre_area in (
             "area_mensajes_conexiones",
-            None,
-        )
-
-        if (
-            area_conexiones is not None
-            and area_conexiones.winfo_exists()
+            "area_mensajes_redes",
         ):
-            area_conexiones.configure(
-                state="normal"
+            area = getattr(
+                self,
+                nombre_area,
+                None,
             )
 
-            area_conexiones.insert(
-                tk.END,
-                texto_mensaje,
-                etiqueta,
-            )
+            if (
+                area is not None
+                and area.winfo_exists()
+            ):
+                area.configure(
+                    state="normal"
+                )
 
-            area_conexiones.configure(
-                state="disabled"
-            )
+                area.insert(
+                    tk.END,
+                    texto_mensaje,
+                    etiqueta,
+                )
 
-            area_conexiones.see(
-                tk.END
-            )
+                area.configure(
+                    state="disabled"
+                )
+
+                area.see(
+                    tk.END
+                )
 
     def cambiar_estado(
         self,
         mensaje: str,
     ) -> None:
         """
-        Actualiza el estado inferior y el estado del subpanel.
+        Actualiza el estado inferior y el estado de los subpaneles.
         """
 
         self.estado.configure(
             text=mensaje
         )
 
-        estado_conexiones = getattr(
-            self,
+        for nombre_estado in (
             "etiqueta_estado_conexiones",
-            None,
-        )
-
-        if (
-            estado_conexiones is not None
-            and estado_conexiones.winfo_exists()
+            "etiqueta_estado_redes",
         ):
-            estado_conexiones.configure(
-                text=mensaje
+            etiqueta_estado = getattr(
+                self,
+                nombre_estado,
+                None,
             )
+
+            if (
+                etiqueta_estado is not None
+                and etiqueta_estado.winfo_exists()
+            ):
+                etiqueta_estado.configure(
+                    text=mensaje
+                )
 
     def cambiar_etiqueta_progreso(
         self,
@@ -1533,6 +1982,9 @@ class AplicacionANS:
     ) -> None:
         """
         Habilita o deshabilita los controles disponibles.
+
+        Los controles de Redes que están en STANDBY permanecen
+        deshabilitados aun cuando finalice el proceso.
         """
 
         estado = (
@@ -1549,16 +2001,19 @@ class AplicacionANS:
             state=estado
         )
 
-        controles_subpanel = (
+        controles_activos = (
             "btn_informe",
             "btn_dashboard",
             "btn_abrir_informe",
             "btn_abrir_dashboard",
             "btn_mapa",
             "btn_cerrar_conexiones",
+            "btn_informe_redes",
+            "btn_abrir_informe_redes",
+            "btn_cerrar_redes",
         )
 
-        for nombre_control in controles_subpanel:
+        for nombre_control in controles_activos:
             control = getattr(
                 self,
                 nombre_control,
@@ -1573,6 +2028,26 @@ class AplicacionANS:
                     state=estado
                 )
 
+        # Botones aún no implementados en ANS Redes.
+        for nombre_control in (
+            "btn_dashboard_redes",
+            "btn_mapa_redes",
+            "btn_abrir_dashboard_redes",
+        ):
+            control = getattr(
+                self,
+                nombre_control,
+                None,
+            )
+
+            if (
+                control is not None
+                and control.winfo_exists()
+            ):
+                control.configure(
+                    state=tk.DISABLED
+                )
+
         self.proceso_activo = bloquear
 
     def preparar_proceso(
@@ -1583,7 +2058,7 @@ class AplicacionANS:
     ) -> None:
         """
         Prepara visualmente un proceso en la ventana principal
-        y en el panel ANS Conexiones.
+        y en cualquiera de los subpaneles abiertos.
         """
 
         self.barra_progreso.configure(
@@ -1595,24 +2070,28 @@ class AplicacionANS:
             15
         )
 
-        barra_conexiones = getattr(
-            self,
+        for nombre_barra in (
             "barra_progreso_conexiones",
-            None,
-        )
-
-        if (
-            barra_conexiones is not None
-            and barra_conexiones.winfo_exists()
+            "barra_progreso_redes",
         ):
-            barra_conexiones.configure(
-                mode="indeterminate",
-                value=0,
+            barra = getattr(
+                self,
+                nombre_barra,
+                None,
             )
 
-            barra_conexiones.start(
-                15
-            )
+            if (
+                barra is not None
+                and barra.winfo_exists()
+            ):
+                barra.configure(
+                    mode="indeterminate",
+                    value=0,
+                )
+
+                barra.start(
+                    15
+                )
 
         self.cambiar_estado(
             estado
@@ -1639,22 +2118,26 @@ class AplicacionANS:
             value=0,
         )
 
-        barra_conexiones = getattr(
-            self,
+        for nombre_barra in (
             "barra_progreso_conexiones",
-            None,
-        )
-
-        if (
-            barra_conexiones is not None
-            and barra_conexiones.winfo_exists()
+            "barra_progreso_redes",
         ):
-            barra_conexiones.stop()
-
-            barra_conexiones.configure(
-                mode="determinate",
-                value=0,
+            barra = getattr(
+                self,
+                nombre_barra,
+                None,
             )
+
+            if (
+                barra is not None
+                and barra.winfo_exists()
+            ):
+                barra.stop()
+
+                barra.configure(
+                    mode="determinate",
+                    value=0,
+                )
 
         self.bloquear_botones(
             False
@@ -1777,6 +2260,134 @@ class AplicacionANS:
                 0,
                 self.finalizar_proceso,
             )
+
+    def iniciar_generacion_informe_redes(self) -> None:
+        """
+        Inicia la generación del informe ANS Redes en un hilo secundario.
+        """
+
+        if self.proceso_activo:
+            return
+
+        self.bloquear_botones(
+            True
+        )
+
+        hilo = threading.Thread(
+            target=self.generar_informe_redes,
+            daemon=True,
+        )
+
+        hilo.start()
+
+    def generar_informe_redes(self) -> None:
+        """
+        Ejecuta la lectura, validación, filtrado y generación
+        del archivo INFORME_ANS_REDES.xlsx.
+
+        Los cálculos contractuales permanecen vacíos hasta que
+        sean definidas las reglas oficiales de ANS Redes.
+        """
+
+        try:
+            self.root.after(
+                0,
+                lambda: self.preparar_proceso(
+                    estado="Generando informe ANS Redes...",
+                    etiqueta="Procesando exporte ANS Redes...",
+                    mensaje_log=(
+                        "Iniciando procesamiento del informe ANS Redes."
+                    ),
+                ),
+            )
+
+            ruta_informe = generar_informe_ans_redes()
+
+            self.root.after(
+                0,
+                lambda: self.mostrar_informe_redes_generado(
+                    ruta_informe
+                ),
+            )
+
+        except Exception as error:
+            logger.exception(
+                "Error al generar el informe ANS Redes."
+            )
+
+            self.root.after(
+                0,
+                lambda mensaje=str(error): (
+                    self.mostrar_error(
+                        "No fue posible generar el informe ANS Redes.\n\n"
+                        f"Detalle: {mensaje}"
+                    )
+                ),
+            )
+
+        finally:
+            self.root.after(
+                0,
+                self.finalizar_proceso,
+            )
+
+    def mostrar_informe_redes_generado(
+        self,
+        ruta_informe,
+    ) -> None:
+        """
+        Presenta el resultado de la generación de ANS Redes.
+        """
+
+        barra_redes = getattr(
+            self,
+            "barra_progreso_redes",
+            None,
+        )
+
+        if (
+            barra_redes is not None
+            and barra_redes.winfo_exists()
+        ):
+            barra_redes.stop()
+            barra_redes.configure(
+                mode="determinate",
+                value=100,
+            )
+
+        self.barra_progreso.stop()
+        self.barra_progreso.configure(
+            mode="determinate",
+            value=100,
+        )
+
+        self.agregar_mensaje(
+            f"Informe ANS Redes generado: {ruta_informe.name}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            "Filtros aplicados: PROCESO, REV_ESTADO y REV_RESPONSABLE.",
+            "info",
+        )
+
+        self.agregar_mensaje(
+            "Los días contractuales y estados ANS permanecen pendientes.",
+            "advertencia",
+        )
+
+        messagebox.showinfo(
+            "ANS Redes",
+            "Informe ANS Redes generado correctamente.\n\n"
+            f"Archivo: {ruta_informe.name}",
+        )
+
+        self.root.after(
+            1500,
+            lambda: self.barra_progreso.configure(
+                value=0
+            ),
+        )
 
     def mostrar_informe_generado(
         self,
@@ -2038,6 +2649,24 @@ class AplicacionANS:
             descripcion="Informe ANS Conexiones",
         )
 
+    def abrir_informe_redes(self) -> None:
+        """
+        Abre INFORME_ANS_REDES.xlsx directamente en DATOS_ANS_REDES.
+        """
+
+        ruta_informe = (
+            BASE_DIR
+            / "salida_redes"
+            / "INFORME_ANS_REDES.xlsx"
+        )
+
+        self.abrir_archivo_excel_en_hoja(
+            ruta_archivo=ruta_informe,
+            nombre_hoja="DATOS_ANS_REDES",
+            descripcion="Informe ANS Redes",
+            cerrar_panel=self.cerrar_panel_redes,
+        )
+
     def abrir_archivo_dashboard_conexiones(self) -> None:
         """
         Abre INFORME_ANS.xlsb y posiciona Excel
@@ -2061,9 +2690,13 @@ class AplicacionANS:
         ruta_archivo,
         nombre_hoja: str,
         descripcion: str,
+        cerrar_panel: Callable[[], None] | None = None,
     ) -> None:
         """
         Abre un archivo de Excel y activa una hoja específica.
+
+        cerrar_panel permite indicar qué subpanel debe cerrarse
+        antes de minimizar la ventana principal.
         """
 
         if not ruta_archivo.exists():
@@ -2114,25 +2747,21 @@ class AplicacionANS:
 
             hoja.Activate()
 
-            # Posiciona la vista en la primera celda.
             hoja.Range("A1").Select()
 
-            # Lleva la hoja al inicio visible.
             excel.ActiveWindow.ScrollRow = 1
             excel.ActiveWindow.ScrollColumn = 1
 
-            # Maximiza Excel.
             excel.WindowState = -4137
 
-            # Excel queda visible y bajo control del usuario.
             excel.Visible = True
             excel.UserControl = True
 
-            # ======================================================
-            # CERRAR EL SUBPANEL ANTES DE MINIMIZAR
-            # ======================================================
-
-            self.cerrar_panel_conexiones() 
+            # Cierra el subpanel correspondiente.
+            if cerrar_panel is None:
+                self.cerrar_panel_conexiones()
+            else:
+                cerrar_panel()
 
             # Minimiza solamente la ventana principal.
             self.root.iconify()
@@ -2169,10 +2798,6 @@ class AplicacionANS:
         finally:
             if com_inicializado:
                 pythoncom.CoUninitialize()
-
-    # ==========================================================
-    # ACTUALIZACIÓN DEL DASHBOARD ANS
-    # ==========================================================
 
     def iniciar_actualizacion_dashboard(self) -> None:
         """
