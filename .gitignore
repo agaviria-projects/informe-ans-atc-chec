@@ -31,3 +31,7 @@ salida/*
 # Sistema operativo
 Thumbs.db
 .DS_Store
+
+
+entrada_redes/*.xlsx
+salida_redes/*.xlsx
