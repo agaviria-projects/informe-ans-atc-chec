@@ -1,4 +1,5 @@
 import logging
+import math
 import re
 import unicodedata
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ==========================================================
 
 PARAMETROS_OBLIGATORIOS = {
-    "DIAS_INICIO_ALERTA",
+    "PORCENTAJE_INICIO_ALERTA",
     "EXCLUIR_SABADOS",
     "EXCLUIR_DOMINGOS",
     "EXCLUIR_FESTIVOS_COLOMBIA",
@@ -181,6 +182,68 @@ def convertir_entero_positivo(
         raise ErrorCalculoANS(
             f"El valor de {nombre_campo} debe ser mayor "
             f"o igual a {minimo}."
+        )
+
+    return numero
+
+
+
+def convertir_porcentaje_alerta(
+    valor: object,
+    nombre_parametro: str = "PORCENTAJE_INICIO_ALERTA",
+) -> float:
+    """
+    Convierte el porcentaje configurado en Excel a decimal.
+
+    Formas válidas:
+    - Celda Excel con 33 % -> pandas recibe 0.33
+    - Número 0.33          -> 0.33
+    - Número 33            -> 0.33
+    - Texto "33%"          -> 0.33
+
+    En Excel se recomienda escribir 33 % y aplicar formato Porcentaje.
+    No escribir 0.33 %, porque Excel lo interpreta como 0.0033.
+    """
+
+    if valor is None:
+        raise ErrorCalculoANS(
+            f"El parámetro {nombre_parametro} no puede estar vacío."
+        )
+
+    try:
+        if pd.isna(valor):
+            raise ErrorCalculoANS(
+                f"El parámetro {nombre_parametro} no puede estar vacío."
+            )
+    except (TypeError, ValueError):
+        pass
+
+    texto = str(valor).strip().replace(",", ".")
+    tiene_signo_porcentaje = texto.endswith("%")
+
+    if tiene_signo_porcentaje:
+        texto = texto[:-1].strip()
+
+    try:
+        numero = float(texto)
+    except (TypeError, ValueError) as error:
+        raise ErrorCalculoANS(
+            f"El parámetro {nombre_parametro} debe ser un porcentaje válido."
+        ) from error
+
+    if tiene_signo_porcentaje:
+        numero = numero / 100
+    elif numero > 1:
+        if numero <= 100:
+            numero = numero / 100
+        else:
+            raise ErrorCalculoANS(
+                f"El parámetro {nombre_parametro} no puede ser mayor a 100 %."
+            )
+
+    if numero <= 0 or numero > 1:
+        raise ErrorCalculoANS(
+            f"El parámetro {nombre_parametro} debe estar entre 0 % y 100 %."
         )
 
     return numero
@@ -582,14 +645,9 @@ def cargar_parametros() -> dict[str, object]:
         )
 
     return {
-        "DIAS_INICIO_ALERTA": (
-            convertir_entero_positivo(
-                parametros[
-                    "DIAS_INICIO_ALERTA"
-                ],
-                "DIAS_INICIO_ALERTA",
-                permitir_cero=True,
-            )
+        "PORCENTAJE_INICIO_ALERTA": convertir_porcentaje_alerta(
+            parametros["PORCENTAJE_INICIO_ALERTA"],
+            "PORCENTAJE_INICIO_ALERTA",
         ),
         "EXCLUIR_SABADOS": convertir_si_no(
             parametros["EXCLUIR_SABADOS"],
@@ -772,20 +830,17 @@ def sumar_dias_habiles(
     """
     Calcula FECHA_LIMITE_ANS.
 
-    La FECHA_ORDEN no cuenta.
+    La FECHA_ORDEN cuenta como el primer día contractual
+    cuando corresponde a un día hábil.
 
-    El conteo comienza desde el día siguiente y solamente
-    incrementa cuando la fecha es hábil.
+    No se cuentan sábados, domingos ni festivos,
+    según los parámetros configurados.
     """
 
     fecha_actual = fecha_inicio
     dias_contados = 0
 
     while dias_contados < dias_pactados:
-
-        fecha_actual += timedelta(
-            days=1
-        )
 
         if es_dia_habil(
             fecha_actual,
@@ -795,41 +850,35 @@ def sumar_dias_habiles(
         ):
             dias_contados += 1
 
+        if dias_contados < dias_pactados:
+            fecha_actual += timedelta(
+                days=1
+            )
+
     return fecha_actual
 
 
 def contar_dias_habiles(
-    fecha_inicial_exclusiva: date,
+    fecha_inicial_inclusiva: date,
     fecha_final_inclusiva: date,
     excluir_sabados: bool,
     excluir_domingos: bool,
     festivos: set[date],
 ) -> int:
     """
-    Cuenta días hábiles después de la fecha inicial y hasta la
-    fecha final, incluyendo la fecha final cuando sea hábil.
+    Cuenta días hábiles incluyendo la fecha inicial
+    y la fecha final.
 
-    Ejemplo:
-
-        fecha inicial: jueves
-        fecha final: martes
-
-        viernes = 1
-        lunes   = 2
-        martes  = 3
+    La FECHA_ORDEN cuenta como día 1 cuando es hábil.
     """
 
-    if fecha_final_inclusiva <= fecha_inicial_exclusiva:
+    if fecha_final_inclusiva < fecha_inicial_inclusiva:
         return 0
 
     contador = 0
-    fecha_actual = fecha_inicial_exclusiva
+    fecha_actual = fecha_inicial_inclusiva
 
-    while fecha_actual < fecha_final_inclusiva:
-
-        fecha_actual += timedelta(
-            days=1
-        )
+    while fecha_actual <= fecha_final_inclusiva:
 
         if es_dia_habil(
             fecha_actual,
@@ -838,6 +887,10 @@ def contar_dias_habiles(
             festivos,
         ):
             contador += 1
+
+        fecha_actual += timedelta(
+            days=1
+        )
 
     return contador
 
@@ -863,16 +916,27 @@ def calcular_dias_restantes(
         return 0
 
     if fecha_actual < fecha_limite:
+
+        fecha_inicio_conteo = (
+            fecha_actual
+            + timedelta(days=1)
+        )
+
         return contar_dias_habiles(
-            fecha_inicial_exclusiva=fecha_actual,
+            fecha_inicial_inclusiva=fecha_inicio_conteo,
             fecha_final_inclusiva=fecha_limite,
             excluir_sabados=excluir_sabados,
             excluir_domingos=excluir_domingos,
             festivos=festivos,
         )
 
+    fecha_inicio_vencimiento = (
+        fecha_limite
+        + timedelta(days=1)
+    )
+
     dias_vencidos = contar_dias_habiles(
-        fecha_inicial_exclusiva=fecha_limite,
+        fecha_inicial_inclusiva=fecha_inicio_vencimiento,
         fecha_final_inclusiva=fecha_actual,
         excluir_sabados=excluir_sabados,
         excluir_domingos=excluir_domingos,
@@ -882,18 +946,46 @@ def calcular_dias_restantes(
     return -dias_vencidos
 
 
+def calcular_dias_para_iniciar_alerta(
+    dias_pactados: int,
+    porcentaje_alerta: float = 0.33,
+) -> int:
+    """
+    Calcula cuántos días restantes activan la alerta.
+
+    Se aplica el porcentaje sobre los días pactados y el
+    resultado se redondea hacia arriba para obtener siempre
+    un número entero.
+
+    Ejemplos con 33 %:
+
+    15 días pactados -> alerta desde 5 días restantes.
+    4 días pactados  -> alerta desde 2 días restantes.
+    7 días pactados  -> alerta desde 3 días restantes.
+    3 días pactados  -> alerta desde 1 día restante.
+    """
+
+    return int(
+        math.ceil(
+            int(dias_pactados) * porcentaje_alerta
+        )
+    )
+
 def determinar_estado(
     dias_restantes: int,
-    umbral_alerta: int,
+    dias_para_iniciar_alerta: int,
 ) -> str:
     """
     Clasifica el estado contractual.
+
+    Un pedido entra en ALERTA cuando sus días restantes son
+    menores o iguales a los días definidos para iniciar alerta.
     """
 
     if dias_restantes < 0:
         return "VENCIDO"
 
-    if dias_restantes <= umbral_alerta:
+    if dias_restantes <= dias_para_iniciar_alerta:
         return "ALERTA"
 
     return "A TIEMPO"
@@ -1065,10 +1157,6 @@ def aplicar_calculos_ans(
             )
         )
 
-    dias_inicio_alerta = parametros[
-        "DIAS_INICIO_ALERTA"
-    ]
-
     excluir_sabados = parametros[
         "EXCLUIR_SABADOS"
     ]
@@ -1085,6 +1173,7 @@ def aplicar_calculos_ans(
 
     tipos_resultado: list[str] = []
     dias_pactados_resultado: list[object] = []
+    dias_para_iniciar_alerta_resultado: list[object] = []
     fechas_limite_resultado: list[object] = []
     dias_transcurridos_resultado: list[object] = []
     dias_restantes_resultado: list[object] = []
@@ -1162,6 +1251,23 @@ def aplicar_calculos_ans(
         )
 
         # --------------------------------------------------
+        # DÍAS PARA INICIAR ALERTA
+        # --------------------------------------------------
+
+        dias_para_iniciar_alerta = (
+            calcular_dias_para_iniciar_alerta(
+                dias_pactados=dias_pactados,
+                porcentaje_alerta=parametros[
+                    "PORCENTAJE_INICIO_ALERTA"
+                ],
+            )
+        )
+
+        dias_para_iniciar_alerta_resultado.append(
+            dias_para_iniciar_alerta
+        )
+
+        # --------------------------------------------------
         # VALIDAR FECHA DE ORDEN
         # --------------------------------------------------
 
@@ -1212,7 +1318,7 @@ def aplicar_calculos_ans(
         # --------------------------------------------------
 
         dias_transcurridos = contar_dias_habiles(
-            fecha_inicial_exclusiva=fecha_orden_date,
+            fecha_inicial_inclusiva=fecha_orden_date,
             fecha_final_inclusiva=fecha_actual,
             excluir_sabados=excluir_sabados,
             excluir_domingos=excluir_domingos,
@@ -1232,23 +1338,15 @@ def aplicar_calculos_ans(
         )
 
         # --------------------------------------------------
-        # ESTADO
+        # ESTADO SEGÚN DÍAS RESTANTES
         # --------------------------------------------------
 
-        if tipo in {
-            "HV",
-            "FACTIBILIDAD",
-            "INMEDIATO",
-        }:
-
-            estado = tipo
-
-        else:
-
-            estado = determinar_estado(
-                dias_restantes=dias_restantes,
-                umbral_alerta=dias_inicio_alerta,
-            )
+        estado = determinar_estado(
+            dias_restantes=dias_restantes,
+            dias_para_iniciar_alerta=(
+                dias_para_iniciar_alerta
+            ),
+        )
 
         fechas_limite_resultado.append(
             pd.Timestamp(
@@ -1268,14 +1366,21 @@ def aplicar_calculos_ans(
             estado
         )
 
-    # ======================================================
+    # =========================================================================================================================
     # ASIGNAR RESULTADOS
-    # ======================================================
+    # Int64 : Guarda números enteros y permite valores vacíos,Guarda días completos,Guarda días positivos, cero o negativos.
+    # pd.to_datetime() : Convierte los resultados en fechas.
+    # =========================================================================================================================
 
     resultado["TIPO"] = tipos_resultado
 
     resultado["DIAS_PACTADOS"] = pd.array(
         dias_pactados_resultado,
+        dtype="Int64",
+    )
+
+    resultado["DIAS_PARA_INICIAR_ALERTA"] = pd.array(
+        dias_para_iniciar_alerta_resultado,
         dtype="Int64",
     )
 
@@ -1297,6 +1402,28 @@ def aplicar_calculos_ans(
     resultado["ESTADO"] = estados_resultado
 
     # ======================================================
+    # ORGANIZAR POSICIÓN DE LA COLUMNA DE ALERTA
+    # ======================================================
+
+    # Extrae la columna de su posición actual.
+    columna_dias_alerta = resultado.pop(
+        "DIAS_PARA_INICIAR_ALERTA"
+    )
+
+    # Busca la posición actual de DIAS_RESTANTES.
+    posicion_dias_restantes = resultado.columns.get_loc(
+        "DIAS_RESTANTES"
+    )
+
+    # Inserta DIAS_PARA_INICIAR_ALERTA justo antes
+    # de DIAS_RESTANTES.
+    resultado.insert(
+        posicion_dias_restantes,
+        "DIAS_PARA_INICIAR_ALERTA",
+        columna_dias_alerta,
+    )
+
+    # ======================================================
     # CONTROL
     # ======================================================
 
@@ -1310,7 +1437,9 @@ def aplicar_calculos_ans(
         "REGLAS_PRIORIDAD_CARGADAS": len(
             reglas_prioridad
         ),
-        "DIAS_INICIO_ALERTA": dias_inicio_alerta,
+        "PORCENTAJE_INICIO_ALERTA": (
+            f"{parametros['PORCENTAJE_INICIO_ALERTA']:.0%}"
+        ),
         "FESTIVOS_CONSIDERADOS": len(
             festivos
         ),
@@ -1336,12 +1465,12 @@ def aplicar_calculos_ans(
             .sum()
         ),
         "PEDIDOS_HV": int(
-            resultado["ESTADO"]
+            resultado["TIPO"]
             .eq("HV")
             .sum()
         ),
         "PEDIDOS_FACTIBILIDAD": int(
-            resultado["ESTADO"]
+            resultado["TIPO"]
             .eq("FACTIBILIDAD")
             .sum()
         ),
