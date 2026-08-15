@@ -20,6 +20,11 @@ from src.actualizador_dashboard import (
     actualizar_dashboard,
 )
 
+from src.actualizador_dashboard_redes import (
+    ErrorActualizacionDashboardRedes,
+    actualizar_dashboard_redes,
+)
+
 from src.config import (
     ALTO_VENTANA,
     BASE_DIR,
@@ -1010,11 +1015,13 @@ class AplicacionANS:
         """
         Abre el subpanel operativo de ANS Redes.
 
-        En esta fase quedan habilitados:
+        Acciones habilitadas:
         - GENERAR INFORME ANS REDES
+        - ACTUALIZAR DASHBOARD
         - ABRIR INFORME
+        - ABRIR DASHBOARD
 
-        Dashboard y mapa permanecen visibles pero en STANDBY.
+        El mapa permanece visible pero en STANDBY.
         """
 
         if self.proceso_activo:
@@ -1049,6 +1056,9 @@ class AplicacionANS:
 
         color_accion_principal = "#00875A"
         color_accion_principal_hover = "#006B47"
+
+        color_proceso_secundario = "#0F766E"
+        color_proceso_secundario_hover = "#0B5F59"
 
         color_consulta = "#475569"
         color_consulta_hover = "#334155"
@@ -1275,10 +1285,10 @@ class AplicacionANS:
         self.btn_dashboard_redes = self.crear_boton(
             contenedor=tarjeta_acciones,
             texto="ACTUALIZAR DASHBOARD",
-            comando=lambda: None,
-            color=color_standby,
-            color_hover=color_standby,
-            color_texto=color_texto_standby,
+            comando=self.iniciar_actualizacion_dashboard_redes,
+            color=color_proceso_secundario,
+            color_hover=color_proceso_secundario_hover,
+            color_texto=COLOR_BLANCO,
         )
 
         self.btn_dashboard_redes.grid(
@@ -1287,10 +1297,6 @@ class AplicacionANS:
             sticky="ew",
             padx=(16, 6),
             pady=(0, 12),
-        )
-
-        self.btn_dashboard_redes.configure(
-            state=tk.DISABLED
         )
 
         self.btn_mapa_redes = self.crear_boton(
@@ -1362,10 +1368,10 @@ class AplicacionANS:
         self.btn_abrir_dashboard_redes = self.crear_boton(
             contenedor=tarjeta_acciones,
             texto="ABRIR DASHBOARD",
-            comando=lambda: None,
-            color=color_standby,
-            color_hover=color_standby,
-            color_texto=color_texto_standby,
+            comando=self.abrir_archivo_dashboard_redes,
+            color=color_consulta,
+            color_hover=color_consulta_hover,
+            color_texto=COLOR_BLANCO,
         )
 
         self.btn_abrir_dashboard_redes.grid(
@@ -1374,10 +1380,6 @@ class AplicacionANS:
             sticky="ew",
             padx=(6, 16),
             pady=(0, 14),
-        )
-
-        self.btn_abrir_dashboard_redes.configure(
-            state=tk.DISABLED
         )
 
         # ==========================================================
@@ -2009,7 +2011,9 @@ class AplicacionANS:
             "btn_mapa",
             "btn_cerrar_conexiones",
             "btn_informe_redes",
+            "btn_dashboard_redes",
             "btn_abrir_informe_redes",
+            "btn_abrir_dashboard_redes",
             "btn_cerrar_redes",
         )
 
@@ -2028,11 +2032,9 @@ class AplicacionANS:
                     state=estado
                 )
 
-        # Botones aún no implementados en ANS Redes.
+        # Botón aún no implementado en ANS Redes.
         for nombre_control in (
-            "btn_dashboard_redes",
             "btn_mapa_redes",
-            "btn_abrir_dashboard_redes",
         ):
             control = getattr(
                 self,
@@ -2372,8 +2374,8 @@ class AplicacionANS:
         )
 
         self.agregar_mensaje(
-            "Los días contractuales y estados ANS permanecen pendientes.",
-            "advertencia",
+            "Cálculos contractuales y estados ANS generados correctamente.",
+            "correcto",
         )
 
         messagebox.showinfo(
@@ -2685,6 +2687,24 @@ class AplicacionANS:
             descripcion="Dashboard ANS Conexiones",
         )
 
+    def abrir_archivo_dashboard_redes(self) -> None:
+        """
+        Abre INFORME ANS-REDES.xlsb directamente en la hoja DASHBOARD.
+        """
+
+        ruta_dashboard = (
+            BASE_DIR
+            / "dashboard"
+            / "INFORME ANS-REDES.xlsb"
+        )
+
+        self.abrir_archivo_excel_en_hoja(
+            ruta_archivo=ruta_dashboard,
+            nombre_hoja="DASHBOARD",
+            descripcion="Dashboard ANS Redes",
+            cerrar_panel=self.cerrar_panel_redes,
+        )
+
     def abrir_archivo_excel_en_hoja(
         self,
         ruta_archivo,
@@ -2881,6 +2901,161 @@ class AplicacionANS:
                 0,
                 self.finalizar_proceso,
             )
+
+    def iniciar_actualizacion_dashboard_redes(self) -> None:
+        """
+        Inicia la actualización del dashboard ANS Redes
+        en un hilo secundario.
+        """
+
+        if self.proceso_activo:
+            return
+
+        self.bloquear_botones(
+            True
+        )
+
+        hilo = threading.Thread(
+            target=self.actualizar_dashboard_ans_redes,
+            daemon=True,
+        )
+
+        hilo.start()
+
+    def actualizar_dashboard_ans_redes(self) -> None:
+        """
+        Transfiere los datos del informe ANS Redes al archivo
+        INFORME ANS-REDES.xlsb y actualiza tablas dinámicas,
+        gráficos y cálculos.
+        """
+
+        try:
+            self.root.after(
+                0,
+                lambda: self.preparar_proceso(
+                    estado="Actualizando dashboard ANS Redes...",
+                    etiqueta="Transfiriendo datos al dashboard Redes...",
+                    mensaje_log=(
+                        "Iniciando actualización del dashboard ANS Redes."
+                    ),
+                ),
+            )
+
+            resumen = actualizar_dashboard_redes(
+                refrescar_dashboard=True
+            )
+
+            self.root.after(
+                0,
+                lambda: self.mostrar_dashboard_redes_actualizado(
+                    resumen
+                ),
+            )
+
+        except ErrorActualizacionDashboardRedes as error:
+            logger.warning(
+                "Actualización del dashboard ANS Redes detenida: %s",
+                error,
+            )
+
+            self.root.after(
+                0,
+                lambda mensaje=str(error): (
+                    self.mostrar_error(mensaje)
+                ),
+            )
+
+        except Exception as error:
+            logger.exception(
+                "Error inesperado al actualizar el dashboard ANS Redes."
+            )
+
+            self.root.after(
+                0,
+                lambda mensaje=str(error): (
+                    self.mostrar_error(
+                        "Ocurrió un error inesperado al actualizar "
+                        "el dashboard ANS Redes.\n\n"
+                        f"Detalle: {mensaje}"
+                    )
+                ),
+            )
+
+        finally:
+            self.root.after(
+                0,
+                self.finalizar_proceso,
+            )
+
+    def mostrar_dashboard_redes_actualizado(
+        self,
+        resumen: dict,
+    ) -> None:
+        """
+        Presenta el resultado de la actualización
+        del dashboard ANS Redes.
+        """
+
+        barra_redes = getattr(
+            self,
+            "barra_progreso_redes",
+            None,
+        )
+
+        if (
+            barra_redes is not None
+            and barra_redes.winfo_exists()
+        ):
+            barra_redes.stop()
+            barra_redes.configure(
+                mode="determinate",
+                value=100,
+            )
+
+        self.barra_progreso.stop()
+        self.barra_progreso.configure(
+            mode="determinate",
+            value=100,
+        )
+
+        self.agregar_mensaje(
+            "Dashboard ANS Redes actualizado correctamente.",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"Registros transferidos: "
+            f"{resumen['REGISTROS_TRANSFERIDOS']:,}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"Columnas transferidas: "
+            f"{resumen['COLUMNAS_TRANSFERIDAS']}",
+            "info",
+        )
+
+        self.agregar_mensaje(
+            f"Archivo actualizado: "
+            f"{os.path.basename(resumen['ARCHIVO_DESTINO'])}",
+            "correcto",
+        )
+
+        messagebox.showinfo(
+            "Dashboard ANS Redes",
+            "Dashboard ANS Redes actualizado correctamente.\n\n"
+            f"Registros transferidos: "
+            f"{resumen['REGISTROS_TRANSFERIDOS']:,}\n"
+            f"Archivo: "
+            f"{os.path.basename(resumen['ARCHIVO_DESTINO'])}",
+        )
+
+        self.root.after(
+            1500,
+            lambda: self.barra_progreso.configure(
+                value=0
+            ),
+        )
 
     def mostrar_dashboard_actualizado(
         self,
