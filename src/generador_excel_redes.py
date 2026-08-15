@@ -54,39 +54,23 @@ COLUMNAS_SALIDA = [
     "REV_COMENTARIO",
     "CODIGO_UBIC_TRANSFORMADOR",
     "DIAS_CONTRACTUALES",
+    "FECHA_LIMITE_ANS",
     "DIAS_TRANSCURRIDOS",
+    "DIAS_PARA_INICIAR_ALERTA",
     "DIAS_RESTANTES",
-    "ESTADO_ANS",
+    "ESTADO",
 ]
 
 
 # ============================================================
-# ANCHOS FIJOS
+# ANCHOS
 # ============================================================
 
 ANCHOS_COLUMNAS = {
-    "A": 18,
-    "B": 12,
-    "C": 32,
-    "D": 20,
-    "E": 22,
-    "F": 26,
-    "G": 22,
-    "H": 16,
-    "I": 28,
-    "J": 35,
-    "K": 24,
-    "L": 24,
-    "M": 24,
-    "N": 22,
-    "O": 14,
-    "P": 24,
-    "Q": 40,
-    "R": 30,
-    "S": 20,
-    "T": 20,
-    "U": 18,
-    "V": 18,
+    "A": 18, "B": 12, "C": 32, "D": 20, "E": 22, "F": 26,
+    "G": 22, "H": 16, "I": 28, "J": 35, "K": 24, "L": 24,
+    "M": 24, "N": 22, "O": 14, "P": 24, "Q": 40, "R": 30,
+    "S": 22, "T": 26, "U": 22, "V": 26, "W": 18, "X": 18,
 }
 
 
@@ -116,21 +100,38 @@ BORDE_CELDA = Border(
     bottom=BORDE_FINO,
 )
 
+# Fondos de ESTADO
+RELLENO_ALERTA = PatternFill(
+    fill_type="solid",
+    fgColor="FFD426",  # amarillo
+)
+
+RELLENO_VENCIDO = PatternFill(
+    fill_type="solid",
+    fgColor="FF1F1F",  # rojo
+)
+
+RELLENO_ALERTA_CERO = PatternFill(
+    fill_type="solid",
+    fgColor="F39C12",  # naranja
+)
+
+RELLENO_A_TIEMPO = PatternFill(
+    fill_type="solid",
+    fgColor="8BCF4A",  # verde
+)
+
+FUENTE_ESTADO = Font(
+    color="000000",
+    bold=True,
+)
+
 
 # ============================================================
-# PREPARACIÓN DE DATOS
+# PREPARACIÓN DE FECHAS
 # ============================================================
 
 def _preparar_fechas(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Convierte explícitamente las columnas de fecha antes de exportar.
-
-    PRO_FECHA_SISTEMA_CREACION:
-        conserva fecha y hora.
-
-    PRO_FECHA_VENCIMIENTO:
-        conserva solo la fecha, eliminando 00:00:00.
-    """
     df = df.copy()
 
     df["PRO_FECHA_SISTEMA_CREACION"] = pd.to_datetime(
@@ -144,6 +145,12 @@ def _preparar_fechas(df: pd.DataFrame) -> pd.DataFrame:
         errors="coerce",
         dayfirst=True,
     ).dt.normalize()
+
+    df["FECHA_LIMITE_ANS"] = pd.to_datetime(
+        df["FECHA_LIMITE_ANS"],
+        errors="coerce",
+        dayfirst=True,
+    )
 
     return df
 
@@ -169,7 +176,7 @@ def _aplicar_formato(ruta_archivo: Path) -> None:
 
     ws.row_dimensions[1].height = 22
 
-    # Datos
+    # Datos generales
     for fila in ws.iter_rows(
         min_row=2,
         max_row=ws.max_row,
@@ -183,28 +190,93 @@ def _aplicar_formato(ruta_archivo: Path) -> None:
             )
             celda.border = BORDE_CELDA
 
-    # Anchos fijos
+    # Anchos
     for letra, ancho in ANCHOS_COLUMNAS.items():
         ws.column_dimensions[letra].width = ancho
 
-    # Formatos de fecha
+    # Mapa de encabezados
     encabezados = {
         ws.cell(row=1, column=columna).value: columna
         for columna in range(1, ws.max_column + 1)
     }
 
-    col_creacion = encabezados.get("PRO_FECHA_SISTEMA_CREACION")
-    if col_creacion:
-        for fila in range(2, ws.max_row + 1):
-            ws.cell(fila, col_creacion).number_format = "dd/mm/yyyy hh:mm:ss"
+    # Fechas con hora
+    for nombre in [
+        "PRO_FECHA_SISTEMA_CREACION",
+        "FECHA_LIMITE_ANS",
+    ]:
+        col = encabezados.get(nombre)
 
-    col_vencimiento = encabezados.get("PRO_FECHA_VENCIMIENTO")
+        if col:
+            for fila in range(2, ws.max_row + 1):
+                ws.cell(
+                    fila,
+                    col,
+                ).number_format = "dd/mm/yyyy hh:mm:ss"
+
+    # Fecha corta
+    col_vencimiento = encabezados.get(
+        "PRO_FECHA_VENCIMIENTO"
+    )
+
     if col_vencimiento:
         for fila in range(2, ws.max_row + 1):
-            celda = ws.cell(fila, col_vencimiento)
+            ws.cell(
+                fila,
+                col_vencimiento,
+            ).number_format = "dd/mm/yyyy"
 
-            # Si Excel recibió datetime, dejarlo como fecha visual corta.
-            celda.number_format = "dd/mm/yyyy"
+    # Enteros
+    for nombre in [
+        "DIAS_CONTRACTUALES",
+        "DIAS_TRANSCURRIDOS",
+        "DIAS_PARA_INICIAR_ALERTA",
+        "DIAS_RESTANTES",
+    ]:
+        col = encabezados.get(nombre)
+
+        if col:
+            for fila in range(2, ws.max_row + 1):
+                ws.cell(
+                    fila,
+                    col,
+                ).number_format = "0"
+
+    # ========================================================
+    # COLORES DIRECTOS EN LA COLUMNA ESTADO
+    # ========================================================
+
+    col_estado = encabezados.get("ESTADO")
+
+    if col_estado:
+        for fila in range(2, ws.max_row + 1):
+            celda_estado = ws.cell(
+                row=fila,
+                column=col_estado,
+            )
+
+            estado = str(
+                celda_estado.value or ""
+            ).strip().upper()
+
+            if estado == "ALERTA":
+                celda_estado.fill = RELLENO_ALERTA
+
+            elif estado == "VENCIDO":
+                celda_estado.fill = RELLENO_VENCIDO
+
+            elif estado == "ALERTA 0 DIAS":
+                celda_estado.fill = RELLENO_ALERTA_CERO
+
+            elif estado == "A TIEMPO":
+                celda_estado.fill = RELLENO_A_TIEMPO
+
+            celda_estado.font = FUENTE_ESTADO
+            celda_estado.alignment = Alignment(
+                horizontal="center",
+                vertical="center",
+                wrap_text=False,
+            )
 
     # Vista
     ws.freeze_panes = "A2"
@@ -233,16 +305,22 @@ def generar_informe_ans_redes() -> Path:
     ]
 
     if faltantes:
-        detalle = "\n".join(f" - {c}" for c in faltantes)
         raise ValueError(
-            "No se puede generar INFORME_ANS_REDES.xlsx porque "
-            f"faltan columnas:\n{detalle}"
+            "No se puede generar INFORME_ANS_REDES.xlsx porque faltan columnas:\n"
+            + "\n".join(
+                f" - {columna}"
+                for columna in faltantes
+            )
         )
 
-    df_salida = df[COLUMNAS_SALIDA].copy()
-    df_salida = _preparar_fechas(df_salida)
+    df_salida = _preparar_fechas(
+        df[COLUMNAS_SALIDA].copy()
+    )
 
-    ruta_salida = CARPETA_SALIDA_REDES / NOMBRE_ARCHIVO_SALIDA
+    ruta_salida = (
+        CARPETA_SALIDA_REDES
+        / NOMBRE_ARCHIVO_SALIDA
+    )
 
     try:
         with pd.ExcelWriter(
@@ -264,7 +342,9 @@ def generar_informe_ans_redes() -> Path:
             "Cierre INFORME_ANS_REDES.xlsx en Excel y vuelva a ejecutar."
         ) from error
 
-    _aplicar_formato(ruta_salida)
+    _aplicar_formato(
+        ruta_salida
+    )
 
     print("=" * 70)
     print("INFORME ANS REDES GENERADO CORRECTAMENTE")
@@ -275,18 +355,14 @@ def generar_informe_ans_redes() -> Path:
     print(f"Hoja                : {NOMBRE_HOJA}")
     print(f"Archivo de salida   : {ruta_salida}")
     print()
-    print("FORMATO:")
-    print(" - Columnas con anchos fijos y legibles.")
-    print(" - Encabezados en una sola línea.")
-    print(" - PRO_FECHA_SISTEMA_CREACION: fecha + hora.")
-    print(" - PRO_FECHA_VENCIMIENTO: fecha corta.")
+    print("COLORES ESTADO:")
+    print(" - ALERTA        -> AMARILLO")
+    print(" - VENCIDO       -> ROJO")
+    print(" - ALERTA 0 DIAS -> NARANJA")
+    print(" - A TIEMPO      -> VERDE")
 
     return ruta_salida
 
-
-# ============================================================
-# EJECUCIÓN MANUAL
-# ============================================================
 
 if __name__ == "__main__":
     try:

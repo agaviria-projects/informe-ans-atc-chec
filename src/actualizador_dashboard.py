@@ -72,6 +72,7 @@ COLUMNAS_DASHBOARD = [
     "DIAS_PACTADOS",
     "FECHA_LIMITE_ANS",
     "DIAS_TRANSCURRIDOS",
+    "DIAS_PARA_INICIAR_ALERTA",
     "DIAS_RESTANTES",
     "ESTADO",
     "OBSERVACION",
@@ -300,9 +301,14 @@ def aplicar_formato_datos_ans(
     cantidad_registros: int,
 ) -> None:
     """
-    Aplica formatos sobre las 16 columnas de DATOS_ANS.
+    Aplica formato a las columnas A:P de DATOS_ANS.
 
-    No modifica el diseño de la hoja DASHBOARD.
+    Reglas visuales:
+
+    - N: DIAS_PARA_INICIAR_ALERTA conserva encabezado verde.
+    - O: DIAS_RESTANTES queda sin colores.
+    - P: ESTADO conserva los colores según el estado.
+    - Q: OBSERVACION no se modifica.
     """
 
     if cantidad_registros <= 0:
@@ -310,30 +316,66 @@ def aplicar_formato_datos_ans(
 
     ultima_fila = cantidad_registros + 1
 
-    # Anchos de columnas.
+    # ======================================================
+    # FORMATO UNIFORME DE ENCABEZADOS
+    # ======================================================
+
+    rango_encabezados = hoja.Range(
+        hoja.Cells(1, 1),
+        hoja.Cells(1, 17),
+    )
+
+    rango_encabezados.FormatConditions.Delete()
+    rango_encabezados.Interior.Pattern = 1
+
+    rango_encabezados.Interior.Color = color_excel(
+        30,
+        132,
+        73,
+    )
+
+    rango_encabezados.Font.Color = color_excel(
+        255,
+        255,
+        255,
+    )
+
+    rango_encabezados.Font.Bold = True
+    rango_encabezados.HorizontalAlignment = -4108
+    rango_encabezados.VerticalAlignment = -4108
+    rango_encabezados.WrapText = True
+
+    # ======================================================
+    # ANCHOS DE COLUMNAS A:P
+    # La columna Q (OBSERVACION) se conserva sin cambios.
+    # ======================================================
+
     anchos = {
-        1: 16,   # ID_ORDEN
-        2: 15,   # FECHA_ORDEN
-        3: 45,   # DIRECCION
-        4: 33,   # PROPIETARIO
-        5: 10,   # ZONA
-        6: 15,   # MUNICIPIO
-        7: 24,   # DESC_MUNICIPIO
-        8: 17,   # REGION_ORIGEN
-        9: 24,   # PDA_NUMERO
-        10: 18,  # TIPO
-        11: 16,  # DIAS_PACTADOS
-        12: 20,  # FECHA_LIMITE_ANS
-        13: 22,  # DIAS_TRANSCURRIDOS
-        14: 18,  # DIAS_RESTANTES
-        15: 25,  # ESTADO
-        16: 110, # OBSERVACION
+        1: 16,    # ID_ORDEN
+        2: 15,    # FECHA_ORDEN
+        3: 45,    # DIRECCION
+        4: 33,    # PROPIETARIO
+        5: 10,    # ZONA
+        6: 15,    # MUNICIPIO
+        7: 24,    # DESC_MUNICIPIO
+        8: 17,    # REGION_ORIGEN
+        9: 24,    # PDA_NUMERO
+        10: 18,   # TIPO
+        11: 16,   # DIAS_PACTADOS
+        12: 20,   # FECHA_LIMITE_ANS
+        13: 22,   # DIAS_TRANSCURRIDOS
+        14: 24,   # DIAS_PARA_INICIAR_ALERTA
+        15: 18,   # DIAS_RESTANTES
+        16: 25,   # ESTADO
     }
 
     for numero_columna, ancho in anchos.items():
         hoja.Columns(numero_columna).ColumnWidth = ancho
 
-    # Formatos numéricos y de fecha.
+    # ======================================================
+    # FORMATOS NUMÉRICOS Y FECHAS
+    # ======================================================
+
     hoja.Range(
         hoja.Cells(2, 1),
         hoja.Cells(ultima_fila, 1),
@@ -366,10 +408,14 @@ def aplicar_formato_datos_ans(
 
     hoja.Range(
         hoja.Cells(2, 13),
-        hoja.Cells(ultima_fila, 14),
+        hoja.Cells(ultima_fila, 15),
     ).NumberFormat = "0"
 
-    # Alineación general.
+    # ======================================================
+    # ALINEACIÓN GENERAL A:P
+    # Q (OBSERVACION) NO SE MODIFICA
+    # ======================================================
+
     rango_datos = hoja.Range(
         hoja.Cells(2, 1),
         hoja.Cells(ultima_fila, 16),
@@ -378,41 +424,123 @@ def aplicar_formato_datos_ans(
     rango_datos.VerticalAlignment = -4108
     rango_datos.WrapText = False
 
-    # Columnas centradas.
     for numero_columna in (
-        2, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15
+        2, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16
     ):
         rango = hoja.Range(
             hoja.Cells(2, numero_columna),
             hoja.Cells(ultima_fila, numero_columna),
         )
+
         rango.HorizontalAlignment = -4108
         rango.VerticalAlignment = -4108
-
-    # Observación en P.
-    rango_observacion = hoja.Range(
-        hoja.Cells(2, 16),
-        hoja.Cells(ultima_fila, 16),
-    )
-
-    rango_observacion.WrapText = True
-    rango_observacion.HorizontalAlignment = -4131
-    rango_observacion.VerticalAlignment = -4160
 
     hoja.Rows(
         f"2:{ultima_fila}"
     ).RowHeight = 36
 
-    # Colores directos sobre ESTADO en O.
-    rango_estado = hoja.Range(
+    # ======================================================
+    # ENCABEZADOS N, O Y P
+    # ======================================================
+
+    color_verde_encabezado = color_excel(
+        30,
+        132,
+        73,
+    )
+
+    color_blanco = color_excel(
+        255,
+        255,
+        255,
+    )
+
+    encabezados_ans = {
+        14: "DIAS_PARA_INICIAR_ALERTA",
+        15: "DIAS_RESTANTES",
+        16: "ESTADO",
+    }
+
+    for numero_columna, nombre_encabezado in (
+        encabezados_ans.items()
+    ):
+        celda_encabezado = hoja.Cells(
+            1,
+            numero_columna,
+        )
+
+        celda_encabezado.Value = nombre_encabezado
+        celda_encabezado.Interior.Color = (
+            color_verde_encabezado
+        )
+        celda_encabezado.Font.Color = color_blanco
+        celda_encabezado.Font.Bold = True
+        celda_encabezado.HorizontalAlignment = -4108
+        celda_encabezado.VerticalAlignment = -4108
+        celda_encabezado.WrapText = True
+
+    # ======================================================
+    # N: DÍAS PARA INICIAR ALERTA
+    # Sin colores en las celdas de datos.
+    # ======================================================
+
+    rango_inicio_alerta = hoja.Range(
+        hoja.Cells(2, 14),
+        hoja.Cells(ultima_fila, 14),
+    )
+
+    rango_inicio_alerta.FormatConditions.Delete()
+    rango_inicio_alerta.Interior.Pattern = -4142
+    rango_inicio_alerta.Font.Color = color_excel(
+        0,
+        0,
+        0,
+    )
+    rango_inicio_alerta.Font.Bold = False
+    rango_inicio_alerta.NumberFormat = "0"
+    rango_inicio_alerta.HorizontalAlignment = -4108
+
+    # ======================================================
+    # O: DÍAS RESTANTES
+    # Sin rojo, azul, amarillo ni formato condicional.
+    # ======================================================
+
+    rango_dias_restantes = hoja.Range(
         hoja.Cells(2, 15),
         hoja.Cells(ultima_fila, 15),
+    )
+
+    rango_dias_restantes.FormatConditions.Delete()
+    rango_dias_restantes.Interior.Pattern = -4142
+    rango_dias_restantes.Font.Color = color_excel(
+        0,
+        0,
+        0,
+    )
+    rango_dias_restantes.Font.Bold = False
+    rango_dias_restantes.NumberFormat = "0"
+    rango_dias_restantes.HorizontalAlignment = -4108
+
+    # ======================================================
+    # P: ESTADO
+    # Única columna que conserva colores operativos.
+    # ======================================================
+
+    rango_estado = hoja.Range(
+        hoja.Cells(2, 16),
+        hoja.Cells(ultima_fila, 16),
     )
 
     rango_estado.FormatConditions.Delete()
     rango_estado.Interior.Pattern = -4142
     rango_estado.Font.Bold = True
-    rango_estado.Font.Color = color_excel(0, 0, 0)
+    rango_estado.Font.Color = color_excel(
+        0,
+        0,
+        0,
+    )
+    rango_estado.HorizontalAlignment = -4108
+    rango_estado.VerticalAlignment = -4108
 
     for numero_fila in range(
         2,
@@ -420,7 +548,7 @@ def aplicar_formato_datos_ans(
     ):
         celda = hoja.Cells(
             numero_fila,
-            15,
+            16,
         )
 
         estado = str(
@@ -432,6 +560,7 @@ def aplicar_formato_datos_ans(
         )
 
         if color is None:
+            celda.Interior.Pattern = -4142
             continue
 
         celda.Interior.Color = color_excel(
@@ -455,7 +584,6 @@ def aplicar_formato_datos_ans(
                 0,
                 0,
             )
-
 
 # ==========================================================
 # ACTUALIZACIÓN DE TABLAS DINÁMICAS

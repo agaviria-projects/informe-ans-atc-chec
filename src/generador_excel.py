@@ -62,9 +62,10 @@ ANCHOS_COLUMNAS = {
     "K": 16,   # DIAS_PACTADOS
     "L": 20,   # FECHA_LIMITE_ANS
     "M": 22,   # DIAS_TRANSCURRIDOS
-    "N": 18,   # DIAS_RESTANTES
-    "O": 25,   # ESTADO
-    "P": 110,  # OBSERVACION
+    "N": 24,   # DIAS_PARA_INICIAR_ALERTA
+    "O": 18,   # DIAS_RESTANTES
+    "P": 25,   # ESTADO
+    "Q": 110,  # OBSERVACION
 }
 
 
@@ -251,10 +252,16 @@ def aplicar_diseno_hoja_datos(
             column=13,
         ).number_format = "0"
 
-        # DIAS_RESTANTES como número entero.
+        # DIAS_PARA_INICIAR_ALERTA como número entero.
         hoja.cell(
             row=fila,
             column=14,
+        ).number_format = "0"
+
+        # DIAS_RESTANTES como número entero.
+        hoja.cell(
+            row=fila,
+            column=15,
         ).number_format = "0"
 
         for columna in range(
@@ -278,8 +285,8 @@ def aplicar_diseno_hoja_datos(
                     wrap_text=False,
                 )
 
-            # Observación ahora está en P = 16.
-            elif columna == 16:
+            # Observación ahora está en Q = 17.
+            elif columna == 17:
                 celda.alignment = Alignment(
                     horizontal="left",
                     vertical="top",
@@ -297,8 +304,9 @@ def aplicar_diseno_hoja_datos(
                 11,  # DIAS_PACTADOS
                 12,  # FECHA_LIMITE_ANS
                 13,  # DIAS_TRANSCURRIDOS
-                14,  # DIAS_RESTANTES
-                15,  # ESTADO
+                14,  # DIAS_PARA_INICIAR_ALERTA
+                15,  # DIAS_RESTANTES
+                16,  # ESTADO
             }:
                 celda.alignment = Alignment(
                     horizontal="center",
@@ -325,10 +333,10 @@ def aplicar_diseno_hoja_datos(
         ultima_fila + 1,
     ):
 
-        # ESTADO ahora está en O = 15.
+        # ESTADO ahora está en P = 16.
         celda_estado = hoja.cell(
             row=fila,
-            column=15,
+            column=16,
         )
 
         estado = str(
