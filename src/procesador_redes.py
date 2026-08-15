@@ -181,6 +181,28 @@ def procesar_redes(df: pd.DataFrame) -> pd.DataFrame:
             "Después de aplicar los filtros configurados en "
             "PARAMETROS_REDES no quedaron registros."
         )
+    
+    # ========================================================
+    # NORMALIZACIÓN VISUAL PARA DASHBOARD
+    # ========================================================
+
+    columnas_mayusculas = [
+        "D_PROCESO",
+        "PRO_D_CLASIFICACION",
+        "REV_RESPONSABLE",
+        "CLI_D_MUNICIPIO",
+        "ESTADO",
+    ]
+
+    for columna in columnas_mayusculas:
+        if columna in df_filtrado.columns:
+            df_filtrado[columna] = (
+                df_filtrado[columna]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.upper()
+            )
 
     # Aquí se aplican las reglas contractuales y de calendario
     # leídas por calculador_ans_redes.py desde FILTROS_ANS_REDES.xlsx.
