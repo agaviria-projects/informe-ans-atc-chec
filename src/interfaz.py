@@ -1021,7 +1021,8 @@ class AplicacionANS:
         - ABRIR INFORME
         - ABRIR DASHBOARD
 
-        El mapa permanece visible pero en STANDBY.
+        GENERAR MAPA queda reservado para una fase futura
+        y no se muestra en el formulario.
         """
 
         if self.proceso_activo:
@@ -1063,8 +1064,9 @@ class AplicacionANS:
         color_consulta = "#475569"
         color_consulta_hover = "#334155"
 
-        color_standby = "#A7B0B5"
-        color_texto_standby = "#F8FAFC"
+        # Colores reservados para una futura reactivación de GENERAR MAPA.
+        # color_standby = "#A7B0B5"
+        # color_texto_standby = "#F8FAFC"
 
         color_cerrar = "#E5E7EB"
         color_cerrar_hover = "#D1D5DB"
@@ -1294,31 +1296,37 @@ class AplicacionANS:
         self.btn_dashboard_redes.grid(
             row=1,
             column=0,
+            columnspan=2,
             sticky="ew",
-            padx=(16, 6),
+            padx=16,
             pady=(0, 12),
         )
 
-        self.btn_mapa_redes = self.crear_boton(
-            contenedor=tarjeta_acciones,
-            texto="GENERAR MAPA",
-            comando=lambda: None,
-            color=color_standby,
-            color_hover=color_standby,
-            color_texto=color_texto_standby,
-        )
-
-        self.btn_mapa_redes.grid(
-            row=1,
-            column=1,
-            sticky="ew",
-            padx=(6, 16),
-            pady=(0, 12),
-        )
-
-        self.btn_mapa_redes.configure(
-            state=tk.DISABLED
-        )
+        # ==========================================================
+        # GENERAR MAPA - RESERVADO PARA FASE FUTURA
+        # ==========================================================
+        # Si más adelante se requiere, se puede reactivar este bloque.
+        #
+        # self.btn_mapa_redes = self.crear_boton(
+        #     contenedor=tarjeta_acciones,
+        #     texto="GENERAR MAPA",
+        #     comando=lambda: None,
+        #     color=color_standby,
+        #     color_hover=color_standby,
+        #     color_texto=color_texto_standby,
+        # )
+        #
+        # self.btn_mapa_redes.grid(
+        #     row=1,
+        #     column=1,
+        #     sticky="ew",
+        #     padx=(6, 16),
+        #     pady=(0, 12),
+        # )
+        #
+        # self.btn_mapa_redes.configure(
+        #     state=tk.DISABLED
+        # )
 
         ttk.Separator(
             tarjeta_acciones,
@@ -2032,23 +2040,7 @@ class AplicacionANS:
                     state=estado
                 )
 
-        # Botón aún no implementado en ANS Redes.
-        for nombre_control in (
-            "btn_mapa_redes",
-        ):
-            control = getattr(
-                self,
-                nombre_control,
-                None,
-            )
-
-            if (
-                control is not None
-                and control.winfo_exists()
-            ):
-                control.configure(
-                    state=tk.DISABLED
-                )
+        # GENERAR MAPA de ANS Redes no se crea en esta versión.
 
         self.proceso_activo = bloquear
 
