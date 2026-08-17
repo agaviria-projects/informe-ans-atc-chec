@@ -1,30 +1,20 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-
-# ============================================================
-# COMPATIBILIDAD DE IMPORTACIÓN
-# ============================================================
-
-DIRECTORIO_SRC = Path(__file__).resolve().parent
-if str(DIRECTORIO_SRC) not in sys.path:
-    sys.path.insert(0, str(DIRECTORIO_SRC))
-
-from procesador_redes import procesar_exporte_redes
+from src.config import BASE_DIR
+from src.procesador_redes import procesar_exporte_redes
 
 
 # ============================================================
 # RUTAS
 # ============================================================
 
-RAIZ_PROYECTO = Path(__file__).resolve().parents[1]
-CARPETA_SALIDA_REDES = RAIZ_PROYECTO / "salida_redes"
+CARPETA_SALIDA_REDES = BASE_DIR / "salida_redes"
 
 NOMBRE_ARCHIVO_SALIDA = "INFORME_ANS_REDES.xlsx"
 NOMBRE_HOJA = "DATOS_ANS_REDES"

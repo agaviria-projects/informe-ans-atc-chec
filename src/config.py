@@ -1,17 +1,17 @@
 from pathlib import Path
+import sys
 
 
 # ==========================================================
 # RUTA RAÍZ DEL PROYECTO
 # ==========================================================
 
-# config.py se encuentra en:
-# Informe_ANS_ATC_CHEC/src/config.py
-#
-# parent        -> src
-# parent.parent -> raíz del proyecto
-
-BASE_DIR = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False):
+    # Aplicación ejecutada como .exe con PyInstaller.
+    BASE_DIR = Path(sys.executable).resolve().parent
+else:
+    # Aplicación ejecutada desde Python.
+    BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # ==========================================================

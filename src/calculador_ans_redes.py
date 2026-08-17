@@ -8,15 +8,15 @@ from pathlib import Path
 import holidays
 import pandas as pd
 
+from src.config import BASE_DIR
+
 
 # ============================================================
 # RUTAS Y HOJAS DE CONFIGURACIÓN
 # ============================================================
 
-RAIZ_PROYECTO = Path(__file__).resolve().parents[1]
-
 RUTA_CONFIG_REDES = (
-    RAIZ_PROYECTO
+    BASE_DIR
     / "config"
     / "FILTROS_ANS_REDES.xlsx"
 )

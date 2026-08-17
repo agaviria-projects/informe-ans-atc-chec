@@ -1,23 +1,28 @@
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 import pandas as pd
 
-DIRECTORIO_SRC = Path(__file__).resolve().parent
-if str(DIRECTORIO_SRC) not in sys.path:
-    sys.path.insert(0, str(DIRECTORIO_SRC))
-
-from calculador_ans_redes import aplicar_calculos_ans_redes
-from validador_redes import (
+from src.calculador_ans_redes import aplicar_calculos_ans_redes
+from src.config import BASE_DIR
+from src.validador_redes import (
     COLUMNAS_REQUERIDAS_REDES,
     validar_exporte_redes,
 )
 
-RAIZ_PROYECTO = Path(__file__).resolve().parents[1]
-RUTA_CONFIG_REDES = RAIZ_PROYECTO / "config" / "FILTROS_ANS_REDES.xlsx"
+
+# ============================================================
+# RUTAS Y CONFIGURACIÓN
+# ============================================================
+
+RUTA_CONFIG_REDES = (
+    BASE_DIR
+    / "config"
+    / "FILTROS_ANS_REDES.xlsx"
+)
+
 HOJA_PARAMETROS_REDES = "PARAMETROS_REDES"
 
 CAMPOS_FILTRO_PERMITIDOS = {
@@ -181,7 +186,7 @@ def procesar_redes(df: pd.DataFrame) -> pd.DataFrame:
             "Después de aplicar los filtros configurados en "
             "PARAMETROS_REDES no quedaron registros."
         )
-    
+
     # ========================================================
     # NORMALIZACIÓN VISUAL PARA DASHBOARD
     # ========================================================
@@ -191,7 +196,6 @@ def procesar_redes(df: pd.DataFrame) -> pd.DataFrame:
         "PRO_D_CLASIFICACION",
         "REV_RESPONSABLE",
         "CLI_D_MUNICIPIO",
-        "ESTADO",
     ]
 
     for columna in columnas_mayusculas:
@@ -207,6 +211,16 @@ def procesar_redes(df: pd.DataFrame) -> pd.DataFrame:
     # Aquí se aplican las reglas contractuales y de calendario
     # leídas por calculador_ans_redes.py desde FILTROS_ANS_REDES.xlsx.
     df_filtrado = aplicar_calculos_ans_redes(df_filtrado)
+
+    # ESTADO se crea después del cálculo.
+    if "ESTADO" in df_filtrado.columns:
+        df_filtrado["ESTADO"] = (
+            df_filtrado["ESTADO"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
 
     return df_filtrado.reset_index(drop=True)
 

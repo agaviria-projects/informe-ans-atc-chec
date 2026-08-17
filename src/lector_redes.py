@@ -5,13 +5,14 @@ from typing import Tuple
 
 import pandas as pd
 
+from src.config import BASE_DIR
+
 
 # ============================================================
 # RUTAS DEL PROYECTO
 # ============================================================
 
-RAIZ_PROYECTO = Path(__file__).resolve().parents[1]
-CARPETA_ENTRADA_REDES = RAIZ_PROYECTO / "entrada_redes"
+CARPETA_ENTRADA_REDES = BASE_DIR / "entrada_redes"
 
 EXTENSIONES_PERMITIDAS = {".xlsx", ".xlsm"}
 

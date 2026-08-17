@@ -10,6 +10,7 @@ import pandas as pd
 import pythoncom
 import win32com.client as win32
 
+from src.config import BASE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,6 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # RUTAS
 # ============================================================
-
-BASE_DIR = Path(__file__).resolve().parents[1]
-
 RUTA_INFORME_REDES = (
     BASE_DIR
     / "salida_redes"

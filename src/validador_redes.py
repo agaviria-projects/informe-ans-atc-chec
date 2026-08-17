@@ -1,21 +1,11 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
 
-
-# ============================================================
-# COMPATIBILIDAD DE IMPORTACIÓN
-# ============================================================
-
-DIRECTORIO_SRC = Path(__file__).resolve().parent
-if str(DIRECTORIO_SRC) not in sys.path:
-    sys.path.insert(0, str(DIRECTORIO_SRC))
-
-from lector_redes import leer_exporte_redes
+from src.lector_redes import leer_exporte_redes
 
 
 # ============================================================
