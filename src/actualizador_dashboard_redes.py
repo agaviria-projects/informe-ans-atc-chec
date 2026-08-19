@@ -535,6 +535,208 @@ def actualizar_elementos_dashboard(
     except Exception:
         pass
 
+def ordenar_estado_segmentador(
+    libro_excel: Any,
+    aplicacion_excel: Any,
+) -> None:
+    """
+    Fuerza el orden operativo del campo ESTADO
+    en tablas dinámicas y segmentadores.
+
+    Orden:
+        1. VENCIDO
+        2. ALERTA 0 DIAS
+        3. ALERTA
+        4. A TIEMPO
+        5. SIN FECHA
+    """
+
+    orden_estados = [
+        "VENCIDO",
+        "ALERTA 0 DIAS",
+        "ALERTA",
+        "A TIEMPO",
+        "SIN FECHA",
+    ]
+
+    # ========================================================
+    # 1. ASEGURAR LISTA PERSONALIZADA EN EXCEL
+    # ========================================================
+
+    try:
+        aplicacion_excel.AddCustomList(
+            orden_estados
+        )
+    except Exception:
+        # Si la lista ya existe, Excel puede generar error.
+        # No es problema.
+        pass
+
+    # ========================================================
+    # 2. ORDENAR TODAS LAS TABLAS DINÁMICAS
+    # ========================================================
+
+    for hoja_excel in libro_excel.Worksheets:
+
+        try:
+            cantidad_tablas = (
+                hoja_excel.PivotTables().Count
+            )
+        except Exception:
+            continue
+
+        for indice_tabla in range(
+            1,
+            cantidad_tablas + 1,
+        ):
+
+            try:
+                tabla_dinamica = (
+                    hoja_excel.PivotTables(
+                        indice_tabla
+                    )
+                )
+
+                campo_estado = (
+                    tabla_dinamica.PivotFields(
+                        "ESTADO"
+                    )
+                )
+
+            except Exception:
+                continue
+
+            # ------------------------------------------------
+            # Permitir listas personalizadas
+            # ------------------------------------------------
+
+            try:
+                tabla_dinamica.SortUsingCustomLists = True
+            except Exception:
+                logger.warning(
+                    "No fue posible habilitar "
+                    "SortUsingCustomLists en %s.",
+                    tabla_dinamica.Name,
+                )
+
+            # ------------------------------------------------
+            # Ordenar por la lista personalizada
+            # xlAscending = 1
+            # ------------------------------------------------
+
+            try:
+                campo_estado.AutoSort(
+                    1,
+                    "ESTADO",
+                )
+            except Exception:
+                logger.warning(
+                    "No fue posible ordenar ESTADO "
+                    "en tabla dinámica %s.",
+                    tabla_dinamica.Name,
+                    exc_info=True,
+                )
+
+            # ------------------------------------------------
+            # Refuerzo manual de posiciones
+            # ------------------------------------------------
+
+            for posicion, estado in enumerate(
+                orden_estados,
+                start=1,
+            ):
+                try:
+                    item = campo_estado.PivotItems(
+                        estado
+                    )
+
+                    item.Position = posicion
+
+                except Exception:
+                    # Puede ocurrir si actualmente ese estado
+                    # no existe en los datos.
+                    continue
+
+    # ========================================================
+    # 3. ORDENAR LOS SEGMENTADORES ESTADO
+    # ========================================================
+
+    try:
+        cantidad_segmentadores = (
+            libro_excel.SlicerCaches.Count
+        )
+
+        for indice in range(
+            1,
+            cantidad_segmentadores + 1,
+        ):
+
+            cache = libro_excel.SlicerCaches(
+                indice
+            )
+
+            nombre_cache = str(
+                cache.Name or ""
+            ).upper()
+
+            nombre_campo = ""
+
+            try:
+                nombre_campo = str(
+                    cache.SourceName or ""
+                ).upper()
+            except Exception:
+                pass
+
+            if (
+                "ESTADO" not in nombre_cache
+                and nombre_campo != "ESTADO"
+            ):
+                continue
+
+            # ------------------------------------------------
+            # Utilizar listas personalizadas
+            # ------------------------------------------------
+
+            try:
+                cache.SortUsingCustomLists = True
+            except Exception:
+                logger.warning(
+                    "No fue posible habilitar "
+                    "SortUsingCustomLists para %s.",
+                    cache.Name,
+                    exc_info=True,
+                )
+
+            # ------------------------------------------------
+            # Orden ascendente.
+            #
+            # Al estar activa SortUsingCustomLists,
+            # Excel usa:
+            #
+            # VENCIDO
+            # ALERTA 0 DIAS
+            # ALERTA
+            # A TIEMPO
+            # SIN FECHA
+            # ------------------------------------------------
+
+            try:
+                cache.SortItems = 2
+            except Exception:
+                logger.warning(
+                    "No fue posible ordenar "
+                    "el segmentador %s.",
+                    cache.Name,
+                    exc_info=True,
+                )
+
+    except Exception:
+        logger.warning(
+            "No fue posible acceder "
+            "a los segmentadores del libro.",
+            exc_info=True,
+        )
 
 # ============================================================
 # PROCESO PRINCIPAL
@@ -709,6 +911,22 @@ def actualizar_dashboard_redes(
                 aplicacion_excel=excel,
             )
 
+            ordenar_estado_segmentador(
+                libro_excel=libro,
+                aplicacion_excel=excel,
+            )
+
+        # ----------------------------------------------------
+        # DEJAR DATOS_ANS COMO HOJA ACTIVA
+        # ----------------------------------------------------
+
+        hoja.Activate()
+
+        try:
+            hoja.Range("A1").Select()
+        except Exception:
+            pass
+
         libro.Save()
 
         resumen = {
@@ -730,7 +948,6 @@ def actualizar_dashboard_redes(
                 refrescar_dashboard
             ),
         }
-
         logger.info(
             "Dashboard ANS Redes actualizado correctamente | %s",
             resumen,

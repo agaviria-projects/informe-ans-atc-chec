@@ -2692,7 +2692,7 @@ class AplicacionANS:
 
         self.abrir_archivo_excel_en_hoja(
             ruta_archivo=ruta_dashboard,
-            nombre_hoja="DASHBOARD",
+            nombre_hoja="DATOS_ANS",
             descripcion="Dashboard ANS Redes",
             cerrar_panel=self.cerrar_panel_redes,
         )
