@@ -722,7 +722,7 @@ class AplicacionANS:
         self.btn_mapa = self.crear_boton(
             contenedor=tarjeta_acciones,
             texto="GENERAR MAPA",
-            comando=self.generar_mapa_ans,
+            comando=self.iniciar_generacion_mapa,
             color=color_proceso_secundario,
             color_hover=color_proceso_secundario_hover,
             color_texto=COLOR_BLANCO,
@@ -2472,28 +2472,43 @@ class AplicacionANS:
             ),
         )
 
+    def iniciar_generacion_mapa(self) -> None:
+        """
+        Inicia la generación del mapa en un hilo secundario
+        para evitar bloquear la interfaz Tkinter.
+        """
+
+        if self.proceso_activo:
+            return
+
+        self.bloquear_botones(
+            True
+        )
+
+        hilo = threading.Thread(
+            target=self.generar_mapa_ans,
+            daemon=True,
+        )
+
+        hilo.start()
     # ==========================================================
     # GENERACIÓN DEL MAPA
     # ==========================================================
 
     def generar_mapa_ans(self) -> None:
         """
-        Genera y abre el mapa ANS con pedidos reales.
+        Genera el mapa ANS en segundo plano.
         """
 
-        if self.proceso_activo:
-            return
-
         try:
-            self.bloquear_botones(
-                True
-            )
-
-            self.preparar_proceso(
-                estado="Generando mapa con pedidos reales...",
-                etiqueta="Construyendo mapa ANS...",
-                mensaje_log=(
-                    "Iniciando generación del mapa ANS con pedidos reales."
+            self.root.after(
+                0,
+                lambda: self.preparar_proceso(
+                    estado="Generando mapa con pedidos reales...",
+                    etiqueta="Construyendo mapa ANS...",
+                    mensaje_log=(
+                        "Iniciando generación del mapa ANS."
+                    ),
                 ),
             )
 
@@ -2501,57 +2516,12 @@ class AplicacionANS:
                 abrir_navegador=True
             )
 
-            self.agregar_mensaje(
-                f"Mapa generado correctamente: {ruta_mapa.name}",
-                "correcto",
-            )
-
-            self.agregar_mensaje(
-                f"Direcciones consultadas: "
-                f"{resumen_mapa['CONSULTAS_REALIZADAS']}",
-                "info",
-            )
-
-            self.agregar_mensaje(
-                f"Ubicaciones encontradas: "
-                f"{resumen_mapa['COORDENADAS_ENCONTRADAS']}",
-                "correcto",
-            )
-
-            self.agregar_mensaje(
-                f"Coordenadas reutilizadas desde caché: "
-                f"{resumen_mapa['COORDENADAS_REUTILIZADAS']}",
-                "info",
-            )
-
-            self.agregar_mensaje(
-                f"Pedidos visibles en el mapa: "
-                f"{resumen_mapa['REGISTROS_EN_EL_MAPA']}",
-                "correcto",
-            )
-
-            self.agregar_mensaje(
-                f"Direcciones pendientes: "
-                f"{resumen_mapa['PENDIENTES_POR_LIMITE']}",
-                "advertencia",
-            )
-
-            self.agregar_mensaje(
-                f"Direcciones no encontradas: "
-                f"{resumen_mapa['DIRECCIONES_NO_ENCONTRADAS']}",
-                "advertencia",
-            )
-
-            self.agregar_mensaje(
-                f"Direcciones rechazadas por municipio: "
-                f"{resumen_mapa['RECHAZADAS_POR_MUNICIPIO']}",
-                "advertencia",
-            )
-
-            self.agregar_mensaje(
-                f"Intentos de geocodificación realizados: "
-                f"{resumen_mapa['INTENTOS_GEOCODIFICACION']}",
-                "info",
+            self.root.after(
+                0,
+                lambda: self.mostrar_mapa_generado(
+                    ruta_mapa,
+                    resumen_mapa,
+                ),
             )
 
         except ErrorGeneracionMapa as error:
@@ -2560,8 +2530,11 @@ class AplicacionANS:
                 error,
             )
 
-            self.mostrar_error(
-                str(error)
+            self.root.after(
+                0,
+                lambda mensaje=str(error): self.mostrar_error(
+                    mensaje
+                ),
             )
 
         except Exception as error:
@@ -2569,14 +2542,89 @@ class AplicacionANS:
                 "Error inesperado durante la generación del mapa."
             )
 
-            self.mostrar_error(
-                "Ocurrió un error inesperado al generar el mapa.\n\n"
-                f"Detalle: {error}"
+            self.root.after(
+                0,
+                lambda mensaje=str(error): self.mostrar_error(
+                    "Ocurrió un error inesperado al generar el mapa.\n\n"
+                    f"Detalle: {mensaje}"
+                ),
             )
 
         finally:
-            self.finalizar_proceso()
+            self.root.after(
+                0,
+                self.finalizar_proceso,
+            )
+            
+    def mostrar_mapa_generado(
+        self,
+        ruta_mapa,
+        resumen_mapa: dict,
+    ) -> None:
+        """
+        Muestra en la interfaz el resultado de la generación del mapa.
+        """
 
+        self.agregar_mensaje(
+            f"Mapa generado correctamente: {ruta_mapa.name}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"Direcciones consultadas: "
+            f"{resumen_mapa['CONSULTAS_REALIZADAS']}",
+            "info",
+        )
+
+        self.agregar_mensaje(
+            f"Ubicaciones encontradas: "
+            f"{resumen_mapa['COORDENADAS_ENCONTRADAS']}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"Coordenadas reutilizadas desde caché: "
+            f"{resumen_mapa['COORDENADAS_REUTILIZADAS']}",
+            "info",
+        )
+
+        self.agregar_mensaje(
+            f"Pedidos visibles en el mapa: "
+            f"{resumen_mapa['REGISTROS_EN_EL_MAPA']}",
+            "correcto",
+        )
+
+        self.agregar_mensaje(
+            f"Direcciones pendientes: "
+            f"{resumen_mapa['PENDIENTES_POR_LIMITE']}",
+            "advertencia",
+        )
+
+        self.agregar_mensaje(
+            f"Direcciones no encontradas: "
+            f"{resumen_mapa['DIRECCIONES_NO_ENCONTRADAS']}",
+            "advertencia",
+        )
+
+        self.agregar_mensaje(
+            f"Direcciones rechazadas por municipio: "
+            f"{resumen_mapa['RECHAZADAS_POR_MUNICIPIO']}",
+            "advertencia",
+        )
+
+        self.agregar_mensaje(
+            f"Intentos de geocodificación realizados: "
+            f"{resumen_mapa['INTENTOS_GEOCODIFICACION']}",
+            "info",
+        )
+
+        messagebox.showinfo(
+            "Mapa ANS",
+            "Mapa generado correctamente.\n\n"
+            f"Archivo: {ruta_mapa.name}\n"
+            f"Pedidos visibles: "
+            f"{resumen_mapa['REGISTROS_EN_EL_MAPA']}",
+        )    
     # ==========================================================
     # ACCIONES COMPLEMENTARIAS
     # ==========================================================

@@ -1021,6 +1021,7 @@ def aplicar_calculos_ans_redes(
         ],
         errors="coerce",
         dayfirst=True,
+        format="mixed",
     )
 
     # --------------------------------------------------------

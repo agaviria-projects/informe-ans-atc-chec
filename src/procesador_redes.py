@@ -32,16 +32,73 @@ CAMPOS_FILTRO_PERMITIDOS = {
 }
 
 
+def _decodificar_xml_excel(valor: object) -> str:
+    """
+    Decodifica secuencias XML que algunos exportadores
+    de Excel dejan almacenadas dentro de los valores.
+
+    Ejemplos:
+        _x0034_109              -> 4109
+        CHEC_x005C_MCARVAAB     -> CHEC\\MCARVAAB
+
+    Se ejecutan varias pasadas porque algunos archivos
+    pueden venir con codificación doble.
+    """
+
+    texto = "" if pd.isna(valor) else str(valor)
+
+    patron = re.compile(
+        r"_x([0-9A-Fa-f]{4})_",
+        flags=re.IGNORECASE,
+    )
+
+    for _ in range(3):
+        nuevo_texto = patron.sub(
+            lambda coincidencia: chr(
+                int(coincidencia.group(1), 16)
+            ),
+            texto,
+        )
+
+        if nuevo_texto == texto:
+            break
+
+        texto = nuevo_texto
+
+    return texto
+
+
 def _texto_serie(serie: pd.Series) -> pd.Series:
-    return serie.fillna("").astype(str).str.strip()
+    return (
+        serie
+        .fillna("")
+        .astype(str)
+        .map(_decodificar_xml_excel)
+        .str.strip()
+    )
 
 
 def _normalizar_proceso(serie: pd.Series) -> pd.Series:
-    return _texto_serie(serie).str.replace(r"\.0$", "", regex=True)
+    return (
+        _texto_serie(serie)
+        .str.replace(
+            r"\.0$",
+            "",
+            regex=True,
+        )
+    )
 
 
 def _normalizar_valor_proceso(valor: object) -> str:
-    return re.sub(r"\.0$", "", str(valor).strip())
+    valor_normalizado = _decodificar_xml_excel(
+        valor
+    ).strip()
+
+    return re.sub(
+        r"\.0$",
+        "",
+        valor_normalizado,
+    )
 
 
 def _es_activo(valor: object) -> bool:
@@ -141,8 +198,9 @@ def cargar_filtros_redes() -> dict[str, set[str]]:
         if campo == "PROCESO":
             valor = _normalizar_valor_proceso(valor)
         else:
-            valor = valor.upper()
-
+            valor = _decodificar_xml_excel(
+                valor
+            ).strip().upper()
         filtros[campo].add(valor)
 
     for campo, valores in filtros.items():
@@ -163,17 +221,60 @@ def procesar_redes(df: pd.DataFrame) -> pd.DataFrame:
 
     filtros = cargar_filtros_redes()
     df_trabajo = df.copy()
+    
+    # ========================================================
+    # DECODIFICAR SECUENCIAS XML DEL EXPORTE
+    # ========================================================
+
+    for columna in df_trabajo.columns:
+        df_trabajo[columna] = (
+            df_trabajo[columna]
+            .map(
+                lambda valor: (
+                    _decodificar_xml_excel(valor)
+                    if isinstance(valor, str)
+                    else valor
+                )
+            )
+        )
 
     proceso = _normalizar_proceso(df_trabajo["PROCESO"])
-    rev_estado = _texto_serie(df_trabajo["REV_ESTADO"]).str.upper()
-    rev_responsable = _texto_serie(
-        df_trabajo["REV_RESPONSABLE"]
-    ).str.upper()
+
+    rev_estado = (
+        _texto_serie(
+            df_trabajo["REV_ESTADO"]
+        )
+        .str.upper()
+    )
+
+    rev_responsable = (
+        _texto_serie(
+            df_trabajo["REV_RESPONSABLE"]
+        )
+        .str.upper()
+    )
+    # ========================================================
+    # APLICAR NORMALIZACIÓN AL DATAFRAME
+    # ========================================================
+
+    df_trabajo["PROCESO"] = proceso
+    df_trabajo["REV_ESTADO"] = rev_estado
+    df_trabajo["REV_RESPONSABLE"] = rev_responsable
+  
+    # ========================================================
+    # FILTRO REAL
+    # ========================================================
 
     mascara = (
-        proceso.isin(filtros["PROCESO"])
-        & rev_estado.isin(filtros["REV_ESTADO"])
-        & rev_responsable.isin(filtros["REV_RESPONSABLE"])
+        proceso.isin(
+            filtros["PROCESO"]
+        )
+        & rev_estado.isin(
+            filtros["REV_ESTADO"]
+        )
+        & rev_responsable.isin(
+            filtros["REV_RESPONSABLE"]
+        )
     )
 
     df_filtrado = df_trabajo.loc[
